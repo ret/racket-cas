@@ -487,6 +487,9 @@
   (define (~blue str)   (~a "{\\color{blue}"   str "\\color{black}}"))
   (define (~green str)  (~a "{\\color{green}"  str "\\color{black}}"))
   (define (~purple str) (~a "{\\color{purple}" str "\\color{black}}"))
+  (define (~html-id id e) (~a "\\htmlId{" id "}{" e "}"))
+  (define (~colorbox bc e) (~a "\\colorbox{" bc "}{$" e "$}"))
+  (define (~fcolorbox fc bc e) (~a "\\fcolorbox{" fc "}{" bc "}{$" e "$}"))
   (define (~explicit-paren strs)
     (case (output-mode)
       [(tex) (~a "{\\left(" (string-append* (add-between strs ",")) "\\right)}")]
@@ -582,6 +585,9 @@
         [(list 'blue   u) (~blue   (par u))]           ; blue  color
         [(list 'green  u) (~green  (par u))]           ; green color
         [(list 'purple u) (~purple (par u))]           ; purpe color
+	[(list 'html-id id u) (~html-id id (par u))]
+	[(list 'colorbox bc u) (~colorbox bc (par u))]
+	[(list 'fcolorbox fc bc u) (~fcolorbox fc bc (par u))]
         [(list 'paren u ...) (~explicit-paren (map v~ u))] ; explicit parens (tex)
         [α    #:when (and wrap-fractions? (not (integer? α))) (wrap (~frac α))] ; XXX
         [α    #:when (not (integer? α)) (~frac α)] ; XXX
@@ -683,7 +689,10 @@
                   [(list 'red    u) (~red    (t1~ u))]
                   [(list 'blue   u) (~blue   (t1~ u))]           ; blue color
                   [(list 'green  u) (~green  (t1~ u))]
-                  [(list 'pruple u) (~purple (t1~ u))]  
+                  [(list 'pruple u) (~purple (t1~ u))]
+                  [(list 'html-id id u) (~html-id id (t1~ u))]
+		  [(list 'colorbox bc u) (~colorbox bc (t1~ u))]
+		  [(list 'fcolorbox fc bc u) (~fcolorbox fc bc (t1~ u))]
                   [(list 'paren u ...) (~explicit-paren (map t1~ u))] ; explicit parens (tex)
 
                   ; unnormalized and normalized quotients
@@ -721,6 +730,9 @@
       [(list 'blue   u) (~blue   (v~ u))]           ; blue color
       [(list 'green  u) (~green  (v~ u))]
       [(list 'purple u) (~purple (v~ u))]
+      [(list 'html-id id u) (~html-id id (v~ u))]
+      [(list 'colorbox bc u) (~colorbox bc (v~ u))]
+      [(list 'fcolorbox fc bc u) (~fcolorbox fc bc (v~ u))]
       [(list 'paren u ...) (~explicit-paren (map v~ u))] ; explicit parens (tex)
       [(list 'formatting options u)
        (let loop ([os options])
@@ -1006,6 +1018,9 @@
   (check-equal? (~ '(blue (paren -3))) "${\\color{blue}{\\left(-3\\right)}\\color{black}}$")
   (check-equal? (~ '(green  (paren -3))) "${\\color{green}{\\left(-3\\right)}\\color{black}}$")
   (check-equal? (~ '(purple (paren -3))) "${\\color{purple}{\\left(-3\\right)}\\color{black}}$")
+  (check-equal? (~ '(html-id some-id (paren -3))) "$\\htmlId{some-id}{{\\left(-3\\right)}}$")
+  (check-equal? (~ '(colorbox green (paren -3))) "$\\colorbox{green}{${\\left(-3\\right)}$}$")
+  (check-equal? (~ '(fcolorbox red cyan (paren -3))) "$\\fcolorbox{red}{cyan}{${\\left(-3\\right)}$}$")
   (check-equal? (~ '(paren x_1 y_1))   "${\\left(x_1,y_1\\right)}$")
   (check-equal? (~ '(~ X (bi n p)))    "$X \\approx  \\text{bi}(n,p)$")
   (check-equal? (~ '(* 1/2 1/3))               "$\\frac{1}{2}\\cdot \\frac{1}{3}$")
