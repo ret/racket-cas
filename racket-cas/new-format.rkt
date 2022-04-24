@@ -427,6 +427,7 @@
        [(denominator) (if (< (length x) 2) unwrapped (wrap-denominator unwrapped))]
        [(base)        (if (< (length x) 2) (base-sub unwrapped) (paren unwrapped))]
        [(exponent) (wrap-exponent unwrapped)]
+       [(radicand) (wrap-radicand unwrapped)] ; case '(sqrt (+ a b))
        [(argument)          unwrapped]
        [(relation-argument) unwrapped]
        [(function-name variable-name) (error 'wrap (~a "got: " x " in the context: " ctx))]
@@ -464,6 +465,7 @@
     [(list* 'power 'base        top-ctx more) (wrap-base        unwrapped)]
     [(list* 'power 'numerator   top-ctx more) (wrap-numerator   unwrapped)]
     [(list* 'power 'denominator top-ctx more) (wrap-denominator unwrapped)]
+    [(list* 'power 'radicand    _)            unwrapped] ; case '(sqrt (expt a 3))
     [(list* 'power (or 'first-factor 'inner-factor 'last-factor) more)
      unwrapped]
     [(list* 'power (or 'first-term   'inner-term 'last-term 'minuend 'subtrahend) more)
@@ -483,6 +485,7 @@
        [(argument)                                      unwrapped]
        [(relation-argument)                             unwrapped]
        [(unary-minus)                           (paren unwrapped)]
+       [(radicand)                              unwrapped] ; case '(sqrt (- a b))
        [(function-name variable-name)
              (error 'wrap (~a "got: " x " in the context: " ctx))]
        [else (error 'wrap (~a "got: " x " in the context: " ctx))])]
@@ -512,11 +515,11 @@
     [(list* 'sqrt top-ctx more)      unwrapped]
     [(list* 'radicand top-ctx more)  unwrapped]
     ;;; UNARY MINUS
+    
     [(list* 'unary-minus (or 'inner-factor 'subtrahend) _) (paren unwrapped)]
     [(list* 'unary-minus 'base _)                          (wrap-base unwrapped)]
     [(list* 'unary-minus (or 'inner-term 'last-term) _)
      (if (use-minus-in-sums?) unwrapped (paren unwrapped))]
-    
     [(list* _ 'first-term _)          unwrapped]
     [(list* _ 'argument __)           unwrapped]
     [(list* _ 'relation-argument __)  unwrapped]
@@ -613,6 +616,7 @@
             [(list  'vec  u1 u2 ...) implicit]  
             [(list  'sqrt u1)        implicit]
             [(list  'sqr  u1)        implicit]
+            [(list  'html-id _ u1)   (implicit* r u1)]
             [_                       explicit])]
          ; first factor is a symbol
          [(? symbol? x)
@@ -631,9 +635,11 @@
                 [(list 'vec  u1 u2 ...) implicit]  
                 [(list 'sqrt u1)        implicit]
                 [(list 'sqr  u1)        implicit]
+                [(list 'html-id _ u1)   (implicit* x u1)]
                 [_                      explicit])
               ; other variables uses explicit
               explicit)]
+         [(list 'html-id _ u1) (implicit* u1 v)]
          ; anything else is explicit
          [_ explicit])]
       ; if implicit products are off, always use *
@@ -931,6 +937,40 @@
        [else    (format-application ctx x)])]
     [_ (error 'format-color (~a "got: " x))]))
 
+(define (format-html-id ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-html-id ctx x)))  
+  (match x
+    [(list 'html-id the-id u)
+     (define s (format-sexp ctx u))
+     (case (mode)
+       [(latex) (~a "{\\htmlId{" the-id "}{" s "}}")] ;;; TDOO do I need the outer {}?
+       [(mma)   (error 'todo-html-id)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-html-id (~a "got: " x))]))
+
+(define (format-fcolorbox ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-fcolorbox ctx x)))  
+  (match x
+    [(list 'fcolorbox frame-color color u)
+     (define s (format-sexp ctx u))
+     (case (mode)
+       ; inner $...$ needed since \colorbox switches to text mode in KaTeX
+       [(latex) (~a "{\\fcolorbox{" frame-color "}{" color "}{$" s "$}}")] ;;; TDOO do I need the outer {}?
+       [(mma)   (error 'todo-fcolorbox)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-fcolorbox (~a "got: " x))]))
+
+(define (format-colorbox ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-colorbox ctx x)))  
+  (match x
+    [(list 'colorbox color u)
+     (define s (format-sexp ctx u))
+     (case (mode)
+       ; inner $...$ needed since \colorbox switches to text mode in KaTeX
+       [(latex) (~a "{\\colorbox{" color "}{$" s "$}}")] ;;; TDOO do I need the outer {}?
+       [(mma)   (error 'todo-colorbox)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-colorbox (~a "got: " x))]))
 
 (define (format-approx ctx x)
   (when debug? (displayln (list 'format-approx ctx x)))  
@@ -1249,6 +1289,9 @@
     [(list* 'group _)               (format-group          ctx x)]
     [(list* '~ _)                   (format-approx         ctx x)]
     [(list* (? color-symbol?) _)    (format-color          ctx x)]
+    [(list* 'html-id _ __)          (format-html-id        ctx x)]
+    [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
+    [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
     [(list* (? relation-symbol?) _) (format-relation       ctx x)]
     [(list* (? symbol? _) __)       (format-application    ctx x)]
     
@@ -1916,10 +1959,16 @@
     (check-equal? (~ '(paren x_1 y_1))   "${\\left(x_1,y_1\\right)}$")
     (check-equal? (~ '(~ X (bi n p)))    "$X \\approx \\text{bi}(n,p)$")
 
-
+    (check-equal? (~ '(html-id 42 (/ a b))) "${\\htmlId{42}{\\frac{a}{b}}}$")
+    (check-equal? (~ '(html-id 42 (sqrt (/ 1 x)))) "${\\htmlId{42}{\\sqrt{\\frac{1}{x}}}}$")
+    (check-equal? (~ '(html-id 42 (sqrt x))) "${\\htmlId{42}{\\sqrt{x}}}$")
+    (check-equal? (~ '(html-id 42 (sqrt (html-id 2 (/ (html-id 3 1) (html-id 4 x)))))) "${\\htmlId{42}{\\sqrt{{\\htmlId{2}{\\frac{{\\htmlId{3}{1}}}{{\\htmlId{4}{x}}}}}}}}$")
+    (check-equal? (~ '(html-id 42 (* (html-id 11 (/ (html-id 111 a) (html-id 112 b))) (html-id 12 2)))) "${\\htmlId{42}{{\\htmlId{11}{\\frac{{\\htmlId{111}{a}}}{{\\htmlId{112}{b}}}}}\\cdot {\\htmlId{12}{2}}}}$")
+    
     (check-equal? (~ '(* 1/2 1/3))              "$\\frac{1}{2}\\cdot \\frac{1}{3}$")
     (check-equal? (~ '(sqrt (* 1/2 1/3)))       "$\\sqrt{{\\frac{1}{2}\\cdot \\frac{1}{3}}}$")
     (check-equal? (~ '(sqrt (* 12 1/12 11/12))) "$\\sqrt{{12\\cdot \\frac{1}{12}\\cdot \\frac{11}{12}}}$")
+    (check-equal? (~ '(sqrt (expt a 3 )))       "$\\sqrt{a^3}$")
 
     (parameterize ([output-root? #t])
       (check-equal? (~ '(expt 2 1/3)) "$\\sqrt[3]{2}$"))

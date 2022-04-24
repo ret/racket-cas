@@ -17,8 +17,10 @@
 
 ; repl -> racket-cas -> core
 
-(require               "core.rkt" "diff.rkt" "format.rkt" "limit.rkt" "newton-raphson.rkt" "polynomial.rkt" "solve.rkt" "taylor.rkt")
-(provide (all-from-out "core.rkt" "diff.rkt" "format.rkt" "limit.rkt" "newton-raphson.rkt" "polynomial.rkt" "solve.rkt" "taylor.rkt"))
+#;(require               "core.rkt" "diff.rkt" "format.rkt" "limit.rkt" "newton-raphson.rkt" "polynomial.rkt" "solve.rkt" "taylor.rkt")
+#;(provide (all-from-out "core.rkt" "diff.rkt" "format.rkt" "limit.rkt" "newton-raphson.rkt" "polynomial.rkt" "solve.rkt" "taylor.rkt"))
+(require               "core.rkt" "diff.rkt" "new-format.rkt" "limit.rkt" "newton-raphson.rkt" "polynomial.rkt" "solve.rkt" "taylor.rkt")
+(provide (all-from-out "core.rkt" "diff.rkt" "new-format.rkt" "limit.rkt" "newton-raphson.rkt" "polynomial.rkt" "solve.rkt" "taylor.rkt"))
 
 (require               "up-ref.rkt" "trig-expand.rkt" "compose-app.rkt" "normalize.rkt" "simplify-expand.rkt" "logical-operators.rkt")
 (provide (all-from-out "up-ref.rkt" "trig-expand.rkt" "compose-app.rkt" "normalize.rkt" "simplify-expand.rkt" "logical-operators.rkt"))
