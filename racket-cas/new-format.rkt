@@ -432,6 +432,7 @@
        [(relation-argument) unwrapped]
        [(function-name variable-name) (error 'wrap (~a "got: " x " in the context: " ctx))]
        [(unary-minus) (paren unwrapped)]
+       [(paren) unwrapped] ; case '(abs (+ x 1)), abs previousy could only take a symbol
        [else (error 'wrap (~a "got: " x " in the context: " ctx))])]
     ;;; PRODUCTS
     [(list* 'product top-ctx more)
@@ -1859,7 +1860,11 @@
     (check-equal? (~ '(diff (f x) y))    "$\\dv{y}(f(x))$")
     (check-equal? (~ '(diff (sqrt x) x)) "$(\\sqrt{x})'$"))
 
-
+  ;;; abs
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(abs x))              "${\\left|x\\right|}$") ; just 'x worked  already
+    (check-equal? (~ '(abs (+ x 1)))        "${\\left|x+1\\right|}$") ; newly fixed
+    (check-equal? (~ '(abs (sqrt (/ x 2)))) "${\\left|\\sqrt{\\frac{x}{2}}\\right|}$")) ; with a more complex expression
 
   ;;; -------------------      
   ;;; Old Tests
