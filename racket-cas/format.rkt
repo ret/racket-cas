@@ -6,6 +6,7 @@
          (for-syntax racket/base racket/syntax syntax/parse)
          "core.rkt" "math-match.rkt" "normalize.rkt" "up-ref.rkt" "compose-app.rkt"
          "logical-operators.rkt" "relational-operators.rkt" "expand.rkt" "trig.rkt"
+         "parameters.rkt"
          (prefix-in % "bfracket.rkt"))
 
 (module+ test
@@ -333,7 +334,7 @@
                  (output-sub-exponent-parens  (list "{" "}"))
                  (output-sub-exponent-wrapper (λ (s) (~a "{" s "}")))
                  ; (output-format-negative-exponent #f) ; omitted on purpose
-                 (output-implicit-product?    #t)
+                 (output-implicit-product?    (default-output-implicit-product?)) ; #t
                  (output-relational-operator  ~relop)
                  (output-variable-name        tex-output-variable-name)
                  (output-format-log           tex-output-log)
@@ -493,7 +494,7 @@
   (define (~explicit-paren strs)
     (case (output-mode)
       [(tex) (~a "{\\left(" (string-append* (add-between strs ",")) "\\right)}")]
-      [else  (~a        "(" (string-append* (add-between strs ",")) ")")]))
+      [else  (~a        "(" (string-append* (add-between strs ",")) ")")]))  
   (define (v~ u [original? #f])
     ; (displayln (list 'v~ u 'orig original?))
     (define ~frac (output-fraction))
@@ -515,7 +516,9 @@
     (define (exponent-sub u) ; wraps the exponent of an expt-expression
       (exponent-wrap (v~ u #t)))
     (define (base-sub u) ; wraps the base of an expt-expression
-      (if (and (number? u) (negative? u))
+      (define (non-integer-fraction? u)
+        (and (number? u) (exact? u) (> (denominator u) 1)))
+      (if (and (number? u) (or (negative? u) (non-integer-fraction? u)))
           ; we only need to add real parens, if expt-left aren't (
           (if (equal? expt-left "(")
               (~a expt-left (v~ u) expt-right)
@@ -545,6 +548,7 @@
                 [(list 'vec u1 u2 ...) implicit-mult]  
                 [(list 'sqrt u1)       implicit-mult]
                 [(list 'sqr u1)        implicit-mult]
+                [(list 'up _ ...)      implicit-mult]
                 [_                   (~sym '*)])]
            ; first factor is a symbol
            [x (define s (~a x))
@@ -562,6 +566,7 @@
                     [(list 'vec u1 u2 ...) implicit-mult]  
                     [(list 'sqrt u1)       implicit-mult]
                     [(list 'sqr  u1)       implicit-mult]
+                    [(list 'up _ ...)      implicit-mult]
                     [_                   (~sym '*)])
                   ; other variables uses explicit
                   (~sym '*))]
@@ -590,7 +595,8 @@
 	[(list 'fcolorbox fc bc u) (~fcolorbox fc bc (par u))]
         [(list 'paren u ...) (~explicit-paren (map v~ u))] ; explicit parens (tex)
         [α    #:when (and wrap-fractions? (not (integer? α))) (wrap (~frac α))] ; XXX
-        [α    #:when (not (integer? α)) (~frac α)] ; XXX
+        [α    #:when (and (not (integer? α)) exponent-base?)  (wrap (~frac α))] ; XXX
+        [α    #:when (not (integer? α))                             (~frac α)] ; XXX
         [r    #:when (>= r 0)           (~num r)]
         [r.bf #:when (bf>= r.bf (bf 0)) (~a r.bf)]
         [x                              (~a (~var x))]
@@ -627,14 +633,14 @@
         [(Expt u p)   (if (and (negative? p) (output-format-negative-exponent))
                           ; note: LaTeX needs to wrap the base in {} if u is an exponent
                           (~a ((output-sub-exponent-wrapper) (par u)) "^" (exponent-wrap p)) 
-                          (~a (par u #:use base-sub)
+                          (~a (par u #:use base-sub #:exponent-base? #t)
                               (~sym '^) ((output-sub-exponent-wrapper)
                                          (fluid-let ([original? #t])
                                                     (par p #:use exponent-sub)))))]
         [(Expt u α)   #:when (= (numerator α) -1) ; -1/p
                         (define format/  (or (output-format-quotient) (λ (u v) (~a u "/" v))))
                         (format/ 1 (par (Root u (/ 1 (- α))) #:use quotient-sub))]
-        [(Expt u v)   (~a (par u #:use base-sub)
+        [(Expt u v)   (~a (par u #:use base-sub #:exponent-base? #t)
                           (~sym '^) ((output-sub-exponent-wrapper)
                                      (fluid-let ([original? #t])
                                         (par v #:use exponent-sub #:wrap-fractions? #t))))]
@@ -658,17 +664,25 @@
         [(list 'diff (list 'sqrt u) x)
          #:when (member x (output-differentiation-mark))
          (~a "(" ((output-format-sqrt) u) ")'")]
+        [(list 'diff (list 'vecfun u) x)
+         #:when (member x (output-differentiation-mark))
+         (~a "\\vec{" (v~ u) "}^{\\prime}" "(" (v~ x) ")" )]
         [(list 'diff f)
          #:when (symbol? f)                              (~a (~sym f) "'")]
         [(list 'diff (list f x) x)
          #:when (and (symbol? f) (symbol? x))            (~a (~sym f) "'(" (~var x) ")")]
+        [(list 'diff (list f x) x u) ; f'(x)|x=x0 i.e.  f'(x0)
+         #:when (and (symbol? f) (symbol? x))   (~a (~sym f) "'(" (v~ u) ")")]
+        [(list 'diff u x)
+         #:when (and (symbol? u) (member x (output-differentiation-mark))) (~a (v~ u #t) "' ")]
         [(list 'diff u x)
          #:when (member x (output-differentiation-mark)) (~a "(" (v~ u #t) ")' ")]
         [(list 'diff u  x)                               (~a "\\dv{" (~var x) "}(" (v~ u #t) ") ")]
 
         [(list 'percent u) (~a (v~ u) (~sym '|%|))]
         [(list 'abs u) ((output-format-abs) u)] 
-        [(list 'vec u) (~a "\\overrightarrow{" (v~ u) "}")] ; TODO: only for TeX 
+        [(list 'vec u)      (~a "\\overrightarrow{" (v~ u) "}")]               ; TODO: only for TeX 
+        [(list 'vecfun u v) (~a "\\overrightarrow{" (v~ u) "}" "(" (v~ v) ")" )] ; TODO: only for TeX 
         [(list 'deg u) (~a (v~ u) "° ")]                    ; TODO: only for TeX 
         [(list 'hat u) (~a "\\hat{" (v~ u) "}")]            ; TODO: only for TeX 
         [(list 'bar u) (~a "\\bar{" (v~ u) "}")]            ; TODO: only for TeX 
@@ -689,7 +703,7 @@
                   [(list 'red    u) (~red    (t1~ u))]
                   [(list 'blue   u) (~blue   (t1~ u))]           ; blue color
                   [(list 'green  u) (~green  (t1~ u))]
-                  [(list 'pruple u) (~purple (t1~ u))]
+                  [(list 'purple u) (~purple (t1~ u))]  
                   [(list 'html-id id u) (~html-id id (t1~ u))]
 		  [(list 'colorbox bc u) (~colorbox bc (t1~ u))]
 		  [(list 'fcolorbox fc bc u) (~fcolorbox fc bc (t1~ u))]
@@ -800,7 +814,7 @@
       [(⊗ r (and (Expt (var: x) u) v)) #:when (positive? r) (~a                    (~num (abs r))   implicit-mult (v~ v #t))]
       ; Implicit multiplication between numbers and variables
       [(⊗ r x)  (~a (~num r) (~var x))] ; XXXX
-
+      
       ; Use explicit multiplication for fractions
       [(⊗ r (⊗ u v))  #:when (and (negative? r) (not (equal? '(*) v)))
                       ;(displayln 'X1)
@@ -809,7 +823,7 @@
                       ;(displayln (list 'X2 r u v (argcons '* u v) (fluid-let ([original? #t]) (v~ (argcons '* u v) #t))))
                       (~a    (~num (abs r))  (implicit* r u) (fluid-let ([original? #t]) (v~ (argcons '* u v) #t)))] ; XXX
       [(⊗ r v)        #:when (negative? r)
-                      ;(displayln 'X3)
+                      ; (displayln 'X3)
                       (define w (if original? values paren))
                       (~a  (w (~a "-" (~num (abs r)))) (implicit* r v) (par v #:use paren))] ; XXX
       [(⊗ r v)        #:when (positive? r)
@@ -817,7 +831,7 @@
                       (~a     (~num r) (implicit* r v) (par v #:use paren))] ; XXX
       
       [(⊗ u v)  #:when (not (equal? '(*) v))
-                ;(displayln (list 'X5 u v (par u) (fluid-let ([original? #t]) (par v))))
+                ; (displayln (list 'X5 u v (par u) (fluid-let ([original? #t]) (par v))))
                 (~a (par u) (implicit* u v) (fluid-let ([original? #t]) (par v)))]
       ; plus
       [(⊕ u r)              (if (negative? r)
@@ -893,11 +907,12 @@
                                          (~sym '^) (fluid-let ([original? #t])
                                                      ((output-sub-exponent-wrapper)
                                                       (par w1 #:use exponent-sub
-                                                              #:wrap-fractions? #t))))]
-      [(Expt u v)  (~a (par u #:exponent-base? #t) (~sym '^) (fluid-let ([original? #t])
-                                           ((output-sub-exponent-wrapper)
-                                            (par v #:use exponent-sub
-                                                 #:wrap-fractions? #t))))]
+                                                           #:wrap-fractions? #t))))]
+      [(Expt u v)  (~a (par u #:exponent-base? #t #:wrap-fractions? #t) (~sym '^)
+                       (fluid-let ([original? #t])
+                                  ((output-sub-exponent-wrapper)
+                                   (par v #:use exponent-sub
+                                        #:wrap-fractions? #t))))]
       [(App u  v)   (match u
                       [(? symbol? f)             (~a          f     "(" (v~ v) ")")]
                       [(list 'vec (? symbol? f)) (~a "\\vec{" f "}" "(" (v~ v) ")")]
@@ -913,8 +928,15 @@
        (~a "(" ((output-format-sqrt) u) ")'")]      
       [(list 'diff f)
        #:when (symbol? f)                     (~a (~sym f) "'")]
+      [(list 'diff (list 'vecfun u x))
+       #:when (member x (output-differentiation-mark))
+       (~a "\\vec{" (v~ u) "}^{\\prime}" "(" (v~ x) ")" )]
       [(list 'diff (list f x) x)
        #:when (and (symbol? f) (symbol? x))   (~a (~sym f) "'(" (~var x) ")")]
+      [(list 'diff (list f x) x u) ; f'(x)|x=u i.e.  f'(u)
+       #:when (and (symbol? f) (symbol? x))   (~a (~sym f) "'(" (v~ u) ")")]
+      [(list 'diff u x)
+       #:when (and (symbol? u) (member x (output-differentiation-mark))) (~a (v~ u #t) "' ")]
       [(list 'diff u x)
        #:when (member x (output-differentiation-mark)) (~a "(" (v~ u #t) ")' ")]
       [(list 'diff u  x)                      (~a "\\dv{" (~var x) "}(" (v~ u #t) ") ")]
@@ -936,12 +958,13 @@
       [(list 'root u v) ((output-format-root) u v)] ; unnormalized root
       [(list 'percent u) (~a (v~ u) (~sym '|%|))]
 
-      [(list 'abs u) ((output-format-abs) u)] 
-      [(list 'vec u) (~a "\\overrightarrow{" (v~ u) "}")] ; TODO: only for TeX 
-      [(list 'deg u) (~a (v~ u) "° ")]                    ; TODO: only for TeX 
-      [(list 'hat u) (~a "\\hat{" (v~ u) "}")]            ; TODO: only for TeX
-      [(list 'bar u) (~a "\\bar{" (v~ u) "}")]            ; TODO: only for TeX
-      [(list 'where u v) (~a (v~ u) " | " (v~ v))]        ; TODO: only for TeX
+      [(list 'abs u)      ((output-format-abs) u)] 
+      [(list 'vec u)      (~a "\\overrightarrow{" (~a u) "}")] ; TODO: only for TeX, Note vector AB needs italic 
+      [(list 'vecfun u v) (~a "\\overrightarrow{" (~a u) "}" "(" (v~ v) ")" )]
+      [(list 'deg u)      (~a (v~ u) "° ")]                    ; TODO: only for TeX 
+      [(list 'hat u)      (~a "\\hat{" (v~ u) "}")]            ; TODO: only for TeX
+      [(list 'bar u)      (~a "\\bar{" (v~ u) "}")]            ; TODO: only for TeX
+      [(list 'where u v)  (~a (v~ u) " | " (v~ v))]        ; TODO: only for TeX
 
       [(list 'int u v)   (~a "\\int " (v~ u) "\\ \\textrm{d}" (v~ v))] ; TODO: only for TeX
       
@@ -1115,4 +1138,9 @@
                   (~ '(expt (/ a b) -2))) "(a/b)^(-2)")
   (check-equal? (~ '(expt (* (expt a 2) (expt b 3)) 4))
                 "(a^2*b^3)^4")
+  (check-equal? (~ '(expt 1/2 2)) "(1/2)^2")
+  (check-equal? (~ '(* 3 (expt 1/2 2))) "3*(1/2)^2")
+  ; implict multiplaction between numbers and vectors
+  (check-equal? (tex '(* 2 (up 3 4))) "$2\\begin{pmatrix} 3\\\\4\\end{pmatrix}$")
+  (check-equal? (tex '(+ (* 2 (up 3 4)) (vec b))) "$2\\begin{pmatrix} 3\\\\4\\end{pmatrix}+\\overrightarrow{b}$")
   )
