@@ -47,6 +47,7 @@
     [(Or u)             (Or  (n u))]
     [(Expt u v)         (Expt (n u) (n v))]
     [(Equal u v)        (Equal        (n u) (n v))] ; xxx
+    [(NotEqual u v)     (NotEqual     (n u) (n v))]
     [(Less u v)         (Less         (n u) (n v))]
     [(LessEqual u v)    (LessEqual    (n u) (n v))]
     [(Greater u v)      (Greater      (n u) (n v))]
@@ -89,7 +90,8 @@
                    [(cons  '< us)     (n (cons 'Less         us))]
                    [(cons  '≤ us)     (n (cons 'LessEqual    us))]
                    [(cons  '> us)     (n (cons 'Greater      us))]
-                   [(cons  '≥ us)     (n (cons 'GreaterEqual us))]
+                   [(cons  '> us)     (n (cons 'Greater      us))]
+                   [(cons  '!= us)    (n (cons 'NotEqual     us))]
                    [_ (let ([nus (map n us)])
                         (if (equal? us nus)
                             u
@@ -110,4 +112,6 @@
   (check-equal? (normalize 1+i)  '(+ @i 1))
   (check-equal? (normalize  +2i) '(* @i 2))
   ; check that @i appears as the first symbol in products
-  (check-equal? (normalize '(* 2 x a z 3 y @a @z @i )) '(* @i 6 @a @z a x y z)))
+  (check-equal? (normalize '(* 2 x a z 3 y @a @z @i )) '(* @i 6 @a @z a x y z))
+  ; check that != translates to NotEqual correctly
+  (check-equal? (normalize  '(!= x 1)) '(NotEqual x 1)))

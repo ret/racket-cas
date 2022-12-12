@@ -1,5 +1,5 @@
 #lang racket/base
-(provide Equal Less LessEqual Greater GreaterEqual)
+(provide Equal NotEqual Less LessEqual Greater GreaterEqual)
 
 ;;;
 ;;; Relational Operators
@@ -23,6 +23,10 @@
   (λ (stx) (syntax-parse stx [(_ u v) #'(list '= u v)]))
   (λ (stx) (syntax-parse stx [(_ u v) #'(Equal: u v)] [_ (identifier? stx) #'Equal:])))
 
+(define-match-expander NotEqual
+  (λ (stx) (syntax-parse stx [(_ u v) #'(list '!= u v)]))
+  (λ (stx) (syntax-parse stx [(_ u v) #'(NotEqual: u v)] [_ (identifier? stx) #'NotEqual:])))
+
 (define-match-expander Less
   (λ (stx) (syntax-parse stx [(_ u v) #'(list '< u v)]))
   (λ (stx) (syntax-parse stx [(_ u v) #'(Less: u v)] [_ (identifier? stx) #'Less:])))
@@ -41,6 +45,7 @@
 
 
 (define (Equal:        u v) (math-match* (u v) [(r s) (=  r s)] [(_ __) `(=  ,u ,v)]))
+(define (NotEqual:     u v) (math-match* (u v) [(r s) (not (=  r s))] [(_ __) `(!=  ,u ,v)]))
 (define (Less:         u v) (math-match* (u v) [(r s) (<  r s)] [(_ __) `(<  ,u ,v)]))
 (define (LessEqual:    u v) (math-match* (u v) [(r s) (<= r s)] [(_ __) `(<= ,u ,v)]))
 (define (Greater:      u v) (math-match* (u v) [(r s) (>  r s)] [(_ __) `(>  ,u ,v)]))

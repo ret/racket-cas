@@ -985,7 +985,7 @@
 
 
 ;;; Relations
-(define relation-symbols '(Less LessEqual Greater GreaterEqual ~ =))
+(define relation-symbols '(Less LessEqual Greater GreaterEqual ~ = NotEqual !=))
 (define (relation-symbol? x) (and (member x relation-symbols) #t))
 (define (relation-symbol->latex-name s)
   (match s
@@ -998,6 +998,8 @@
     ['LessEqual    "≤ "]
     ['Greater      "> "]
     ['GreaterEqual "≥ "]
+    ['NotEqual     "\\ne "]
+    ['!=           "\\ne "]
     [_             (~a s " ")]))
 (define (relation-symbol->default-name s)
   (match s
@@ -1984,6 +1986,8 @@
     (check-equal? (~ '(LessEqual    x 1)) "$x ≤ 1$")
     (check-equal? (~ '(Greater      x 1)) "$x > 1$")
     (check-equal? (~ '(GreaterEqual x 1)) "$x ≥ 1$")
+    (check-equal? (~ '(NotEqual     x 1)) "$x \\ne 1$")
+    (check-equal? (~ '(!=           x 1)) "$x \\ne 1$")
 
     (check-equal? (~ '(bar x))            "${\\bar{x}}$")
     (check-equal? (~ '(braces 1 2 3))     "${\\left\\{1,2,3\\right\\}}$")
