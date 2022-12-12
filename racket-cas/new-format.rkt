@@ -998,8 +998,8 @@
     ['LessEqual    "≤ "]
     ['Greater      "> "]
     ['GreaterEqual "≥ "]
-    ['NotEqual     "\\ne "]
-    ['!=           "\\ne "]
+    ['NotEqual     "\\not = "] ; in KaTex {\not =} is as wide as a =
+    ['!=           "\\not = "] ; whereas \ne is narrower
     [_             (~a s " ")]))
 (define (relation-symbol->default-name s)
   (match s
