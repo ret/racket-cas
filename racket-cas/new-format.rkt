@@ -1986,8 +1986,8 @@
     (check-equal? (~ '(LessEqual    x 1)) "$x ≤ 1$")
     (check-equal? (~ '(Greater      x 1)) "$x > 1$")
     (check-equal? (~ '(GreaterEqual x 1)) "$x ≥ 1$")
-    (check-equal? (~ '(NotEqual     x 1)) "$x \\ne 1$")
-    (check-equal? (~ '(!=           x 1)) "$x \\ne 1$")
+    (check-equal? (~ '(NotEqual     x 1)) "$x \\not = 1$") ; KaTeX
+    (check-equal? (~ '(!=           x 1)) "$x \\not = 1$") ; KaTeX
 
     (check-equal? (~ '(bar x))            "${\\bar{x}}$")
     (check-equal? (~ '(braces 1 2 3))     "${\\left\\{1,2,3\\right\\}}$")
