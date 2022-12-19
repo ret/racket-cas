@@ -399,6 +399,9 @@
                               (<<= u v)))))))]
        ; no other possibilities left
        [(_ _) (displayln (list s1 s2)) (error '<< "internal error: missing a case")])]
+    ; Case: peel off 'vec wrapper in ((vec f) x) vector-function situations
+    [( (list (list 'vec _f) u) v) (<< u v)]
+    [( u (list (list 'vec _f) v)) (<< u v)]
     [(_ _) (displayln (list s1 s2)) (error '<< "internal error: missing a case")]))
 
 (module+ test

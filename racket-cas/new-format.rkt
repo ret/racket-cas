@@ -14,6 +14,7 @@
          output-floating-point-precision
          output-differentiation-mark
          output-terms-descending?
+         output-vec-style
 
          mode
          format
@@ -107,6 +108,9 @@
 ;; If #t:     (+ 1 x y)  -> y+x+1
 ;; If #f:     (+ 1 x y)  -> 1+x+y
 
+(define output-vec-style (make-parameter 'arrow))
+;; KaTeX render (vec x) using one of three
+;; styles: 'arrow 'vec 'bold. Default is 'arrow.
 
 ;;;
 ;;; TEST
@@ -618,6 +622,7 @@
             [(list  'sqrt u1)        implicit]
             [(list  'sqr  u1)        implicit]
             [(list  'html-id _ u1)   (implicit* r u1)]
+            [(list (list 'vec _) _)  implicit] ; (* 2 ((vec f) m))
             [_                       explicit])]
          ; first factor is a symbol
          [(? symbol? x)
@@ -637,6 +642,7 @@
                 [(list 'sqrt u1)        implicit]
                 [(list 'sqr  u1)        implicit]
                 [(list 'html-id _ u1)   (implicit* x u1)]
+;; ???RETO                [(list (list 'vec _) _) implicit] ; (* x ((vec f) m))
                 [_                      explicit])
               ; other variables uses explicit
               explicit)]
@@ -844,6 +850,7 @@
     ['*   "\\cdot "]
     ['or  "\\vee "]
     ['and "\\wedge "]
+    [(list 'vec _) (format-vec 'original s)]
     ;;; Names with 2 or more characters needs to be typeset upright.
     [_  (define t (~a s))
         (if (= (string-length t) 1) t (~a "\\text{" t "}"))]))
@@ -1099,7 +1106,12 @@
     [(list 'vec u)
      (define s (format-sexp (cons 'paren ctx) u))     
      (case (mode)
-       [(latex) (~a "{\\overrightarrow{" s "}}")]
+       [(latex)
+        (case (output-vec-style)
+          [(arrow) (~a "{\\overrightarrow{" s "}}")] ;; default
+          [(vec)   (~a "{\\vec{" s "}}")]
+          [(bold)  (~a "{\\boldsymbol{" s "}}")] ;; KaTeX
+          [else (error 'format-vec (~a "unknown vec style: " (output-vec-style)))])]
        [else    (format-application ctx x)])]
     [_ (error 'format-vec (~a "got: " x))]))
 
@@ -1297,6 +1309,8 @@
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
     [(list* (? relation-symbol?) _) (format-relation       ctx x)]
     [(list* (? symbol? _) __)       (format-application    ctx x)]
+    ; Case: ((vec f) x), i.e. the function being applied is vector-function.
+    [(list* (list 'vec (? symbol? _)) __) (format-application    ctx x)]
     
     [_
      (error 'format-sexp (~a "got: " x))]))
@@ -1971,7 +1985,31 @@
     (check-equal? (~ '(html-id 42 (sqrt x))) "${\\htmlId{42}{\\sqrt{x}}}$")
     (check-equal? (~ '(html-id 42 (sqrt (html-id 2 (/ (html-id 3 1) (html-id 4 x)))))) "${\\htmlId{42}{\\sqrt{{\\htmlId{2}{\\frac{{\\htmlId{3}{1}}}{{\\htmlId{4}{x}}}}}}}}$")
     (check-equal? (~ '(html-id 42 (* (html-id 11 (/ (html-id 111 a) (html-id 112 b))) (html-id 12 2)))) "${\\htmlId{42}{{\\htmlId{11}{\\frac{{\\htmlId{111}{a}}}{{\\htmlId{112}{b}}}}}\\cdot {\\htmlId{12}{2}}}}$")
+
+    (check-equal? (~ '(vec f)) "${\\overrightarrow{f}}$")
+    (check-equal? (~ '((vec f) x)) "${\\overrightarrow{f}}(x)$")
+    (parameterize ([output-vec-style 'bold])
+      (check-equal? (~ '(* 5 ((vec f) x))) "$5{\\boldsymbol{f}}(x)$"))
+    (parameterize ([output-vec-style 'vec])
+      (check-equal? (~ '(* 5 ((vec f) x))) "$5{\\vec{f}}(x)$"))
+    (check-equal? (~ '(/ ((vec f) (* 2 x)) 2)) "$\\frac{{\\overrightarrow{f}}(2x)}{2}$")
+    (check-equal? (~ '(* (vec f) (sqr v) )) "${\\overrightarrow{f}}\\cdot v^2$")
+    (check-equal? (~ '(* ((vec f) m) 2 #;(sqr v) )) "${\\overrightarrow{f}}(m)\\cdot 2$")
+    (check-equal? (~ '(* 2 ((vec f) m) #;(sqr v) )) "$2{\\overrightarrow{f}}(m)$")
+    (check-equal? (~ '(* x (f (vec g)) )) "$x\\cdot f({\\overrightarrow{g}})$")
+
+    (check-equal? (~ '(* ((vec f) m) x)) "${\\overrightarrow{f}}(m)\\cdot x$")
+    (check-equal? (~ '(* x ((vec f) m))) "$x\\cdot {\\overrightarrow{f}}(m)$")
+    (check-equal? (~ '(* ((vec f) m) (sqr v) )) "${\\overrightarrow{f}}(m)\\cdot v^2$")
+    (check-equal? (~ '(* (sqr v) ((vec f) m))) "$v^2\\cdot {\\overrightarrow{f}}(m)$")
     
+    (check-equal? (~ '(/ ((vec f) m) x)) "$\\frac{{\\overrightarrow{f}}(m)}{x}$")
+    (check-equal? (~ '(/ x ((vec f) m))) "$\\frac{x}{{\\overrightarrow{f}}(m)}$")
+    (check-equal? (~ '(/ ((vec f) m) (sqr v) )) "$\\frac{{\\overrightarrow{f}}(m)}{v^2}$")
+    (check-equal? (~ '(/ (sqr v) ((vec f) m))) "$\\frac{v^2}{{\\overrightarrow{f}}(m)}$")
+
+    (check-equal? (~ '(+ (* 5 ((vec f) a)) (* 6 ((vec g) b)))) "$5{\\overrightarrow{f}}(a)+6{\\overrightarrow{g}}(b)$")
+
     (check-equal? (~ '(* 1/2 1/3))              "$\\frac{1}{2}\\cdot \\frac{1}{3}$")
     (check-equal? (~ '(sqrt (* 1/2 1/3)))       "$\\sqrt{{\\frac{1}{2}\\cdot \\frac{1}{3}}}$")
     (check-equal? (~ '(sqrt (* 12 1/12 11/12))) "$\\sqrt{{12\\cdot \\frac{1}{12}\\cdot \\frac{11}{12}}}$")
