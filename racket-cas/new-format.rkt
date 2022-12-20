@@ -980,6 +980,38 @@
        [else    (format-application ctx x)])]
     [_ (error 'format-colorbox (~a "got: " x))]))
 
+; T = complex|real|integer|natural
+; (T number?) ---> T^n (e.g. R^3)
+; (T symbol?) ---> T^s (e.g. R^m)
+; (times S T) ---> S X T
+; (to S T)    ---> S -> T
+(define (format-sym-decl-type ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-sym-decl-type ctx x)))  
+  (match x
+    [(list 'sym-decl-type the-type ul)
+     (define lhs (string-join (map (lambda (x) (format-sexp ctx x)) ul) ", "))
+     (define (format-sym-decl-latex-typename x)
+       (match x
+         ['complex "\\Complex"]
+         ['real "\\reals"]
+         ['integer "\\Z"]
+         ['natural "\\N"]
+         [else (error format-sym-decl-latex-typename (~a "unknown type: " x))]))
+     (define (rhs-type x)
+       (match x
+         [(list 'to ta tb) (~a (rhs-type ta) "\\to" (rhs-type tb))] ; ->
+         [(list 'times ta tb) (~a (rhs-type ta) "\\times" (rhs-type tb))] ; X
+         [(? symbol? t) (format-sym-decl-latex-typename t)] ; R
+         [(list (? symbol? t) (? number? n)) (~a "{" (format-sym-decl-latex-typename t) "}^{" (number->string n) "}")] ; R^3
+         [(list (? symbol? t) (? symbol? e)) (~a "{" (format-sym-decl-latex-typename t) "}^{" (symbol->string e) "}")] ; R^n
+         [else (error 'format-sym-decl-type (~a "unknown rhs type: " x))]))
+     (define rhs (rhs-type the-type))
+     (case (mode)
+       [(latex) (~a lhs "\\colon " rhs)]
+       [(mma)   (error 'todo-sym-decl-type)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-sym-decl-type (~a "got: " x))]))
+
 (define (format-approx ctx x)
   (when debug? (displayln (list 'format-approx ctx x)))  
   (match x
@@ -1307,6 +1339,7 @@
     [(list* 'html-id _ __)          (format-html-id        ctx x)]
     [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
+    [(list* 'sym-decl-type _nt _l)  (format-sym-decl-type  ctx x)]
     [(list* (? relation-symbol?) _) (format-relation       ctx x)]
     [(list* (? symbol? _) __)       (format-application    ctx x)]
     ; Case: ((vec f) x), i.e. the function being applied is vector-function.
@@ -2009,6 +2042,15 @@
     (check-equal? (~ '(/ (sqr v) ((vec f) m))) "$\\frac{v^2}{{\\overrightarrow{f}}(m)}$")
 
     (check-equal? (~ '(+ (* 5 ((vec f) a)) (* 6 ((vec g) b)))) "$5{\\overrightarrow{f}}(a)+6{\\overrightarrow{g}}(b)$")
+
+    (check-equal? (~ '(sym-decl-type complex (a b c))) "$a, b, c\\colon \\Complex$")
+
+    (check-equal? (~ '(sym-decl-type (times real real) (p q))) "$p, q\\colon \\reals\\times\\reals$")
+    (check-equal? (~ '(sym-decl-type (to (real n) (integer 2)) ( (vec a) b c ) )) "${\\overrightarrow{a}}, b, c\\colon {\\reals}^{n}\\to{\\Z}^{2}$")
+    (check-equal? (~ '(sym-decl-type (to (real n) (times complex (integer 2))) ( (vec a) b c ) )) "${\\overrightarrow{a}}, b, c\\colon {\\reals}^{n}\\to\\Complex\\times{\\Z}^{2}$")
+    (check-equal? (~ '(sym-decl-type (to complex real) (x y))) "$x, y\\colon \\Complex\\to\\reals$")
+    (check-equal? (~ '(sym-decl-type natural (f))) "$f\\colon \\N$")
+    (check-equal? (~ '(sym-decl-type (natural 3) (b))) "$b\\colon {\\N}^{3}$")
 
     (check-equal? (~ '(* 1/2 1/3))              "$\\frac{1}{2}\\cdot \\frac{1}{3}$")
     (check-equal? (~ '(sqrt (* 1/2 1/3)))       "$\\sqrt{{\\frac{1}{2}\\cdot \\frac{1}{3}}}$")
