@@ -417,6 +417,8 @@
             (or 'first-term 'first-factor 'minuend 'argument 'radicand)
             more)
      unwrapped]
+    [(list* 'rational 'relation-argument more)
+     unwrapped]
     [(list* 'rational more)
      (error 'wrap (~a "no explicit rule for rational in the context: " ctx))]
     ;;; SUMS
@@ -1151,7 +1153,8 @@
   (when debug? (displayln (list 'format-abs ctx x)))
   (match x
     [(list 'abs u)
-     (define s (format-sexp (cons 'paren ctx) u))     
+     ; (define s (format-sexp (cons 'paren ctx) u))     
+     (define s (format-sexp ctx u))     
      (case (mode)
        [(latex) (~a "{\\left|" s "\\right|}")]
        [(mma)   (~a "Abs[" s "]")]       
