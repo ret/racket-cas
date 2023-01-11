@@ -1153,8 +1153,10 @@
   (when debug? (displayln (list 'format-abs ctx x)))
   (match x
     [(list 'abs u)
-     ; (define s (format-sexp (cons 'paren ctx) u))     
-     (define s (format-sexp ctx u))     
+     ; (define s (format-sexp (cons 'paren ctx) u))
+     ; Reto: removing the (cons 'paren ctx) makes tc-LessAbs
+     ;       (see below) pass
+     (define s (format-sexp ctx u))
      (case (mode)
        [(latex) (~a "{\\left|" s "\\right|}")]
        [(mma)   (~a "Abs[" s "]")]       
@@ -2071,6 +2073,7 @@
     (check-equal? (~ '(GreaterEqual x 1)) "$x ≥ 1$")
     (check-equal? (~ '(NotEqual     x 1)) "$x \\not = 1$") ; KaTeX
     (check-equal? (~ '(!=           x 1)) "$x \\not = 1$") ; KaTeX
+    (check-equal? (~ '(Less (abs (- (* 9 x) 4)) 45)) "${\\left|9x-4\\right|} < 45$") ; tc-less-abs, see format-abs
 
     (check-equal? (~ '(bar x))            "${\\bar{x}}$")
     (check-equal? (~ '(braces 1 2 3))     "${\\left\\{1,2,3\\right\\}}$")
