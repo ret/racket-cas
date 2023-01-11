@@ -982,6 +982,23 @@
        [else    (format-application ctx x)])]
     [_ (error 'format-colorbox (~a "got: " x))]))
 
+(define (format-annotation ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-annotation ctx x)))  
+  (match x
+    [(list 'annotation style note u)
+     (define s (format-sexp ctx u))
+     (define n (format-sexp ctx note))
+     (case (mode)
+       [(latex)
+        (match style
+          ; note: KaTeX seems to only support _^ annotation for under/overbrace, but
+          ; not e.g. underline or undergroup etc.
+          ['underbrace (~a "{\\underbrace{" s "}_{\\text{" n "}}}")] ;;; TDOO do I need the outer {}?
+          ['overbrace  (~a "{\\overbrace{"  s "}^{\\text{" n "}}}")])]
+       [(mma)   (error 'todo-annotation)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-annotation (~a "got: " x))]))
+
 ; T = complex|real|integer|natural
 ; (T number?) ---> T^n (e.g. R^3)
 ; (T symbol?) ---> T^s (e.g. R^m)
@@ -1344,6 +1361,7 @@
     [(list* 'html-id _ __)          (format-html-id        ctx x)]
     [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
+    [(list* 'annotation _s _n __)   (format-annotation     ctx x)]
     [(list* 'sym-decl-type _nt _l)  (format-sym-decl-type  ctx x)]
     [(list* (? relation-symbol?) _) (format-relation       ctx x)]
     [(list* (? symbol? _) __)       (format-application    ctx x)]
@@ -2048,6 +2066,8 @@
 
     (check-equal? (~ '(+ (* 5 ((vec f) a)) (* 6 ((vec g) b)))) "$5{\\overrightarrow{f}}(a)+6{\\overrightarrow{g}}(b)$")
 
+    (check-equal? (~ '(* 42 (annotation underbrace "some note" (+ a b)) 84)) "$42\\cdot {\\underbrace{(a+b)}_{\\text{\\textrm{some note}}}}\\cdot 84$")
+    
     (check-equal? (~ '(sym-decl-type complex (a b c))) "$a, b, c\\colon \\Complex$")
 
     (check-equal? (~ '(sym-decl-type (times real real) (p q))) "$p, q\\colon \\reals\\times\\reals$")
