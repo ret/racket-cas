@@ -991,10 +991,15 @@
      (case (mode)
        [(latex)
         (match style
+          ['underbrace (~a "{\\underbrace{" s "}_{\\text{" n "}}}")] ;;; TDOO do I need the outer {}?
+          ['overbrace  (~a "{\\overbrace{"  s "}^{\\text{" n "}}}")]
           ; note: KaTeX seems to only support _^ annotation for under/overbrace, but
           ; not e.g. underline or undergroup etc.
-          ['underbrace (~a "{\\underbrace{" s "}_{\\text{" n "}}}")] ;;; TDOO do I need the outer {}?
-          ['overbrace  (~a "{\\overbrace{"  s "}^{\\text{" n "}}}")])]
+          ['underline  (~a "{\\underline{"  s "}}")] ; no note, not supported in KaTeX
+          ['overline   (~a "{\\overline{"   s "}}")]
+          ['undergroup (~a "{\\undergroup{" s "}}")]
+          ['overgroup  (~a "{\\overgroup{"  s "}}")]
+          )]
        [(mma)   (error 'todo-annotation)]
        [else    (format-application ctx x)])]
     [_ (error 'format-annotation (~a "got: " x))]))
