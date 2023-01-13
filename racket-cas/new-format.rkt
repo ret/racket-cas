@@ -998,11 +998,25 @@
           ['underline  (~a "{\\underline{"  s "}}")] ; no note, not supported in KaTeX
           ['overline   (~a "{\\overline{"   s "}}")]
           ['undergroup (~a "{\\undergroup{" s "}}")]
-          ['overgroup  (~a "{\\overgroup{"  s "}}")]
-          )]
+          ['overgroup  (~a "{\\overgroup{"  s "}}")])]
        [(mma)   (error 'todo-annotation)]
        [else    (format-application ctx x)])]
     [_ (error 'format-annotation (~a "got: " x))]))
+
+(define (format-cancel ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-cancel ctx x)))  
+  (match x
+    [(list 'cancel style u)
+     (define s (format-sexp ctx u))
+     (case (mode)
+       [(latex)
+        (match style
+          ['default (~a "{\\cancel{"  s "}}")] ;; TDOO do I need the outer {}?
+          ['back    (~a "{\\bcancel{" s "}}")]
+          ['cross   (~a "{\\xcancel{" s "}}")])]
+       [(mma)   (error 'todo-cancel)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-cancel (~a "got: " x))]))
 
 ; T = complex|real|integer|natural
 ; (T number?) ---> T^n (e.g. R^3)
@@ -1367,6 +1381,7 @@
     [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
     [(list* 'annotation _s _n __)   (format-annotation     ctx x)]
+    [(list* 'cancel _s __)          (format-cancel         ctx x)]
     [(list* 'sym-decl-type _nt _l)  (format-sym-decl-type  ctx x)]
     [(list* (? relation-symbol?) _) (format-relation       ctx x)]
     [(list* (? symbol? _) __)       (format-application    ctx x)]
@@ -2072,6 +2087,7 @@
     (check-equal? (~ '(+ (* 5 ((vec f) a)) (* 6 ((vec g) b)))) "$5{\\overrightarrow{f}}(a)+6{\\overrightarrow{g}}(b)$")
 
     (check-equal? (~ '(* 42 (annotation underbrace "some note" (+ a b)) 84)) "$42\\cdot {\\underbrace{(a+b)}_{\\text{\\textrm{some note}}}}\\cdot 84$")
+    (check-equal? (~ '(* 42 (+ (cancel default a) b))) "$42({\\cancel{a}}+b)$")
     
     (check-equal? (~ '(sym-decl-type complex (a b c))) "$a, b, c\\colon \\Complex$")
 
