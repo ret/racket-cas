@@ -987,14 +987,15 @@
   (match x
     [(list 'annotation style note u)
      (define s (format-sexp ctx u))
-     (define n (format-sexp ctx note))
+     (define n (format/no-wrap note))
      (case (mode)
        [(latex)
         (match style
-          ['underbrace (~a "{\\underbrace{" s "}_{\\text{" n "}}}")] ;;; TDOO do I need the outer {}?
-          ['overbrace  (~a "{\\overbrace{"  s "}^{\\text{" n "}}}")]
+          ['underbrace (~a "{\\underbrace{" s "}_{" n "}}")] ;;; TDOO do I need the outer {}?
+          ['overbrace  (~a "{\\overbrace{"  s "}^{" n "}}")]
           ; note: KaTeX seems to only support _^ annotation for under/overbrace, but
           ; not e.g. underline or undergroup etc.
+          ['sout       (~a "{\\sout{"       s "}}")]
           ['underline  (~a "{\\underline{"  s "}}")] ; no note, not supported in KaTeX
           ['overline   (~a "{\\overline{"   s "}}")]
           ['undergroup (~a "{\\undergroup{" s "}}")]
@@ -2086,7 +2087,7 @@
 
     (check-equal? (~ '(+ (* 5 ((vec f) a)) (* 6 ((vec g) b)))) "$5{\\overrightarrow{f}}(a)+6{\\overrightarrow{g}}(b)$")
 
-    (check-equal? (~ '(* 42 (annotation underbrace "some note" (+ a b)) 84)) "$42\\cdot {\\underbrace{(a+b)}_{\\text{\\textrm{some note}}}}\\cdot 84$")
+    (check-equal? (~ '(* 42 (annotation underbrace "some note" (+ a b)) 84)) "$42\\cdot {\\underbrace{(a+b)}_{\\textrm{some note}}}\\cdot 84$")
     (check-equal? (~ '(* 42 (+ (cancel default a) b))) "$42({\\cancel{a}}+b)$")
     
     (check-equal? (~ '(sym-decl-type complex (a b c))) "$a, b, c\\colon \\Complex$")
