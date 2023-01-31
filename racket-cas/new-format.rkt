@@ -933,7 +933,7 @@
        [else    (~a "[" args "]")])]
     [_ (error 'format-bracket (~a "got: " x))]))
 
-(define color-symbols '(red green blue purple))
+(define color-symbols '(red green blue purple magenta))
 (define (color-symbol? s) (and (member s color-symbols) #t))
 
 (define (format-color ctx x)
