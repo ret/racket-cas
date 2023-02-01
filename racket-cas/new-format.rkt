@@ -940,7 +940,7 @@
   (when debug? (displayln (list 'format-color ctx x)))  
   (match x
     [(list the-color u)
-     (define s (format-sexp (cons 'paren ctx) u))
+     (define s (format-sexp ctx u))
      (case (mode)
        [(latex) (~a "{\\color{" the-color "}" s "\\color{black}}")]
        [(mma)   (error 'todo-color)]
