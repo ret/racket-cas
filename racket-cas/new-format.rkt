@@ -625,6 +625,7 @@
             [(list  'sqr  u1)        implicit]
             [(list  'html-id _ u1)   (implicit* r u1)]
             [(list  'html-class _ u1) (implicit* r u1)]
+            [(list  'html-style _ u1) (implicit* r u1)]
             [(list (list 'vec _) _)  implicit] ; (* 2 ((vec f) m))
             [_                       explicit])]
          ; first factor is a symbol
@@ -646,12 +647,14 @@
                 [(list 'sqr  u1)        implicit]
                 [(list 'html-id _ u1)   (implicit* x u1)]
                 [(list 'html-class _ u1) (implicit* x u1)]
+                [(list 'html-style _ u1) (implicit* x u1)]
 ;; ???RETO                [(list (list 'vec _) _) implicit] ; (* x ((vec f) m))
                 [_                      explicit])
               ; other variables uses explicit
               explicit)]
          [(list 'html-id _ u1) (implicit* u1 v)]
          [(list 'html-class _ u1) (implicit* u1 v)]
+         [(list 'html-style _ u1) (implicit* u1 v)]
          ; anything else is explicit
          [_ explicit])]
       ; if implicit products are off, always use *
@@ -971,6 +974,17 @@
        [(mma)   (error 'todo-html-class)]
        [else    (format-application ctx x)])]
     [_ (error 'format-html-class (~a "got: " x))]))
+
+(define (format-html-style ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-html-style ctx x)))
+  (match x
+    [(list 'html-style the-style-str u)
+     (define s (format-sexp ctx u))
+     (case (mode)
+       [(latex) (~a "{\\htmlStyle{" the-style-str "}{" s "}}")] ;;; TDOO do I need the outer {}?
+       [(mma)   (error 'todo-html-style)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-html-style (~a "got: " x))]))
 
 (define (format-fcolorbox ctx x) ; KaTeX
   (when debug? (displayln (list 'format-fcolorbox ctx x)))  
@@ -1394,6 +1408,7 @@
     [(list* (? color-symbol?) _)    (format-color          ctx x)]
     [(list* 'html-id _ __)          (format-html-id        ctx x)]
     [(list* 'html-class _ __)       (format-html-class     ctx x)]
+    [(list* 'html-style _ __)       (format-html-style     ctx x)]
     [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
     [(list* 'annotation _s _n __)   (format-annotation     ctx x)]
@@ -2080,7 +2095,9 @@
 
     (check-equal? (~ '(html-class foo (/ a b))) "${\\htmlClass{foo}{\\frac{a}{b}}}$")
     (check-equal? (~ '(html-class foo (/ (html-class hover:bar a) b))) "${\\htmlClass{foo}{\\frac{{\\htmlClass{hover:bar}{a}}}{b}}}$")
-    
+
+    (check-equal? (~ '(html-style "border: solid; background-color: red" (/ a b))) "${\\htmlStyle{?}{\\frac{a}{b}}}$")
+
     (check-equal? (~ '(vec f)) "${\\overrightarrow{f}}$")
     (check-equal? (~ '((vec f) x)) "${\\overrightarrow{f}}(x)$")
     (parameterize ([output-vec-style 'bold])
