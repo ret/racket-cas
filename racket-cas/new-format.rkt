@@ -1059,10 +1059,10 @@
      (define lhs (string-join (map (lambda (x) (format-sexp ctx x)) ul) ", "))
      (define (format-sym-decl-latex-typename x)
        (match x
-         ['complex "\\Complex"]
-         ['real "\\reals"]
-         ['integer "\\Z"]
-         ['natural "\\N"]
+         ['complex "\\mathbb{C}"]
+         ['real "\\mathbb{R}"]
+         ['integer "\\mathbb{Z}"]
+         ['natural "\\mathbb{N}"]
          [else (error format-sym-decl-latex-typename (~a "unknown type: " x))]))
      (define (rhs-type x)
        (match x
@@ -2096,7 +2096,7 @@
     (check-equal? (~ '(html-class foo (/ a b))) "${\\htmlClass{foo}{\\frac{a}{b}}}$")
     (check-equal? (~ '(html-class foo (/ (html-class hover:bar a) b))) "${\\htmlClass{foo}{\\frac{{\\htmlClass{hover:bar}{a}}}{b}}}$")
 
-    (check-equal? (~ '(html-style "border: solid; background-color: red" (/ a b))) "${\\htmlStyle{?}{\\frac{a}{b}}}$")
+    (check-equal? (~ '(html-style "border: solid; background-color: red" (/ a b)))  "${\\htmlStyle{border: solid; background-color: red}{\\frac{a}{b}}}$")
 
     (check-equal? (~ '(vec f)) "${\\overrightarrow{f}}$")
     (check-equal? (~ '((vec f) x)) "${\\overrightarrow{f}}(x)$")
@@ -2125,14 +2125,14 @@
     (check-equal? (~ '(* 42 (annotation underbrace "some note" (+ a b)) 84)) "$42\\cdot {\\underbrace{(a+b)}_{\\textrm{some note}}}\\cdot 84$")
     (check-equal? (~ '(* 42 (+ (cancel default a) b))) "$42({\\cancel{a}}+b)$")
     
-    (check-equal? (~ '(sym-decl-type complex (a b c))) "$a, b, c\\colon \\Complex$")
+    (check-equal? (~ '(sym-decl-type complex (a b c))) "$a, b, c\\colon \\mathbb{C}$")
 
-    (check-equal? (~ '(sym-decl-type (times real real) (p q))) "$p, q\\colon \\reals\\times\\reals$")
-    (check-equal? (~ '(sym-decl-type (to (real n) (integer 2)) ( (vec a) b c ) )) "${\\overrightarrow{a}}, b, c\\colon {\\reals}^{n}\\to{\\Z}^{2}$")
-    (check-equal? (~ '(sym-decl-type (to (real n) (times complex (integer 2))) ( (vec a) b c ) )) "${\\overrightarrow{a}}, b, c\\colon {\\reals}^{n}\\to\\Complex\\times{\\Z}^{2}$")
-    (check-equal? (~ '(sym-decl-type (to complex real) (x y))) "$x, y\\colon \\Complex\\to\\reals$")
-    (check-equal? (~ '(sym-decl-type natural (f))) "$f\\colon \\N$")
-    (check-equal? (~ '(sym-decl-type (natural 3) (b))) "$b\\colon {\\N}^{3}$")
+    (check-equal? (~ '(sym-decl-type (times real real) (p q))) "$p, q\\colon \\mathbb{R}\\times\\mathbb{R}$")
+    (check-equal? (~ '(sym-decl-type (to (real n) (integer 2)) ( (vec a) b c ) )) "${\\overrightarrow{a}}, b, c\\colon {\\mathbb{R}}^{n}\\to{\\mathbb{Z}}^{2}$")
+    (check-equal? (~ '(sym-decl-type (to (real n) (times complex (integer 2))) ( (vec a) b c ) )) "${\\overrightarrow{a}}, b, c\\colon {\\mathbb{R}}^{n}\\to\\mathbb{C}\\times{\\mathbb{Z}}^{2}$")
+    (check-equal? (~ '(sym-decl-type (to complex real) (x y))) "$x, y\\colon \\mathbb{C}\\to\\mathbb{R}$")
+    (check-equal? (~ '(sym-decl-type natural (f))) "$f\\colon \\mathbb{N}$")
+    (check-equal? (~ '(sym-decl-type (natural 3) (b))) "$b\\colon {\\mathbb{N}}^{3}$")
 
     (check-equal? (~ '(* 1/2 1/3))              "$\\frac{1}{2}\\cdot \\frac{1}{3}$")
     (check-equal? (~ '(sqrt (* 1/2 1/3)))       "$\\sqrt{{\\frac{1}{2}\\cdot \\frac{1}{3}}}$")
