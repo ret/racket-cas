@@ -1091,19 +1091,21 @@
 
 
 ;;; Relations
-(define relation-symbols '(Less LessEqual Greater GreaterEqual ~ = NotEqual !=))
+(define relation-symbols '(Less LessEqual Greater GreaterEqual ~ = NotEqual != < > <= >= ≤ ≥))
 (define (relation-symbol? x) (and (member x relation-symbols) #t))
 (define (relation-symbol->latex-name s)
   (match s
-    ['<=           "≤ "]
-    ['>=           "≥ "]
-    ['≤            "≤ "]
-    ['≥            "≥ "]
+    ['<            "< "]
+    ['>            "> "]
+    ['<=           "\\leq "]
+    ['>=           "\\geq "]
+    ['≤            "\\leq "]
+    ['≥            "\\geq "]
     ['~            "\\approx "]
     ['Less         "< "]      
-    ['LessEqual    "≤ "]
+    ['LessEqual    "\\leq "]
     ['Greater      "> "]
-    ['GreaterEqual "≥ "]
+    ['GreaterEqual "\\geq "]
     ['NotEqual     "\\not = "] ; in KaTex {\not =} is as wide as a =
     ['!=           "\\not = "] ; whereas \ne is narrower
     [_             (~a s " ")]))
@@ -2145,9 +2147,9 @@
     (check-equal? (~ '(- (sqr c) (sqr a))) "$c^2-a^2$")
 
     (check-equal? (~ '(Less         x 1)) "$x < 1$")
-    (check-equal? (~ '(LessEqual    x 1)) "$x ≤ 1$")
+    (check-equal? (~ '(LessEqual    x 1)) "$x \\leq 1$")
     (check-equal? (~ '(Greater      x 1)) "$x > 1$")
-    (check-equal? (~ '(GreaterEqual x 1)) "$x ≥ 1$")
+    (check-equal? (~ '(GreaterEqual x 1)) "$x \\geq 1$")
     (check-equal? (~ '(NotEqual     x 1)) "$x \\not = 1$") ; KaTeX
     (check-equal? (~ '(!=           x 1)) "$x \\not = 1$") ; KaTeX
     (check-equal? (~ '(Less (abs (- (* 9 x) 4)) 45)) "${\\left|9x-4\\right|} < 45$") ; tc-less-abs, see format-abs
