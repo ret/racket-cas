@@ -739,7 +739,13 @@
        (define den (format-sexp (cons 'denominator ctx) v))
        (case (mode)
          [(latex) (~a "\\frac{" num "}{" den "}")]
-         [else    (~a num "/" den)])]         
+         [else    (if (and (list? v) (> (length v) 1) (not (string-prefix? den "(")))
+                      ; see *** Odds and ends - Reto, test ***
+                      ; problem we're fixing is that
+                      ;   (/ b (* 2 a)) -> prints to b/2*a which sympy reads as (b/2)*a
+                      ;  instead of b/(2*a), which we want. Wrap explicitly.
+                      (~a num "/" "(" den ")" )
+                      (~a num "/"     den     ))])]
       [_ (error 'format-quotient (~a "got: " x))]))
   (wrap (cons 'quotient ctx) x unwrapped))
 
@@ -1991,6 +1997,13 @@
     (check-equal? (~ '(abs (+ x 1)))        "${\\left|x+1\\right|}$") ; newly fixed
     (check-equal? (~ '(abs (sqrt (/ x 2)))) "${\\left|\\sqrt{\\frac{x}{2}}\\right|}$")) ; with a more complex expression
 
+  ;;; -------------------------
+  ;;; Odds and ends - Reto
+  (parameterize ([mode 'default]
+                 [implicit-product? #f])
+    (check-equal? (~ '(/ b (* 2 a))) "b/(2*a)")) ; ***, see format-quotient
+  ;;; -------------------------
+  
   ;;; -------------------      
   ;;; Old Tests
   ;;; -------------------      
