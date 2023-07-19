@@ -23,7 +23,6 @@
          latex-mode ; 'inline 'mathsdisplay or 'unwrapped
          )
 
-
 ;;;
 ;;; TODO
 ;;;   - (- x ...) with more than two arguments
@@ -516,6 +515,10 @@
        [else (error 'wrap (~a "got: " x " in the context: " ctx))])]
     ;;; APPLICATIONS
     [(list* 'application 'base _) (wrap-base unwrapped)]
+    [(list* 'application 'exponent _)
+     (case (mode)
+       [(latex) (wrap-exponent unwrapped)] ; latex requires the \log in exponent to be {} wrapped
+       [else unwrapped])]
     [(list* 'application  _)                 unwrapped]
     
     ;;; SQUARE ROOTS
@@ -1266,7 +1269,7 @@
      (define log-base (format-sexp (cons 'base     ctx) u))
      (define log-arg  (format-sexp (cons 'argument ctx) v))
      (case (mode)
-       [(latex) (~a "log_{" log-base "}" (paren log-arg))]
+       [(latex) (~a "\\log_{" log-base "}" (paren log-arg))]
        [else    (format-application ctx x)])]))
 
 (define (format-up ctx x)
@@ -1908,7 +1911,9 @@
 
   (parameterize ([mode 'latex])
     (check-equal? (~ '(expt x 2))  "$x^2$")
-    (check-equal? (~ '(expt x 23))  "$x^{23}$"))
+    (check-equal? (~ '(expt x 23))  "$x^{23}$")
+    (check-equal? (~ '(expt 10 (log (* x 2)))) "$10^{\\log(x\\cdot 2)}$")
+    (check-equal? (~ '(expt 10 (* 2 (log 10 (* x 2))))) "$10^{2\\cdot \\log_{10}(x\\cdot 2)}$"))
 
   ;;; DIFFERENCE
   (parameterize ([mode 'default])
@@ -1957,8 +1962,9 @@
     (check-equal? (~ '(f (expt x y))) "$f(x^y)$")
     (check-equal? (~ '(f (root x y))) "$f(\\sqrt[y]{x})$")
     (check-equal? (~ '(f (sqrt x)))   "$f(\\sqrt{x})$")
-    (check-equal? (~ '(sin x))        "$\\sin(x)$"))
-
+    (check-equal? (~ '(sin x))        "$\\sin(x)$")
+    (check-equal? (~ '(log a (* x y))) "$\\log_{a}(x\\cdot y)$")) ; log with explicit base 
+  
   ;;; PARENS
   (parameterize ([mode 'default])
     (check-equal? (~ '(paren))       "()")
