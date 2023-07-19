@@ -1269,7 +1269,7 @@
      (define log-base (format-sexp (cons 'base     ctx) u))
      (define log-arg  (format-sexp (cons 'argument ctx) v))
      (case (mode)
-       [(latex) (~a "\\log_{" log-base "}" (paren log-arg))]
+       [(latex) (~a "{\\log_{" log-base "}" (paren log-arg) "}")]
        [else    (format-application ctx x)])]))
 
 (define (format-up ctx x)
@@ -1912,8 +1912,9 @@
   (parameterize ([mode 'latex])
     (check-equal? (~ '(expt x 2))  "$x^2$")
     (check-equal? (~ '(expt x 23))  "$x^{23}$")
-    (check-equal? (~ '(expt 10 (log (* x 2)))) "$10^{\\log(x\\cdot 2)}$")
-    (check-equal? (~ '(expt 10 (* 2 (log 10 (* x 2))))) "$10^{2\\cdot \\log_{10}(x\\cdot 2)}$"))
+    (check-equal? (~ '(expt a (log (* x 2)))) "$a^{\\log(x\\cdot 2)}$")
+    (check-equal? (~ '(expt a (log a (* x 2)))) "42")
+    (check-equal? (~ '(expt a (* 2 (log a (* x 2))))) "$a^{2\\cdot \\log_{a}(x\\cdot 2)}$"))
 
   ;;; DIFFERENCE
   (parameterize ([mode 'default])
