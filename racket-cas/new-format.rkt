@@ -1019,6 +1019,17 @@
        [else    (format-application ctx x)])]
     [_ (error 'format-colorbox (~a "got: " x))]))
 
+(define (format-Delta ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-Delta ctx x)))  
+  (match x
+    [(list 'Delta u)
+     (define s (format-sexp ctx u))
+     (case (mode)
+       [(latex) (~a "{\\Delta " s "}")]
+       [(mma)   (error 'todo-Delta)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-Delta (~a "got: " x))]))
+
 (define (format-annotation ctx x) ; KaTeX
   (when debug? (displayln (list 'format-annotation ctx x)))  
   (match x
@@ -1421,6 +1432,7 @@
     [(list* 'html-class _ __)       (format-html-class     ctx x)]
     [(list* 'html-style _ __)       (format-html-style     ctx x)]
     [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
+    [(list* 'Delta _)               (format-Delta          ctx x)]
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
     [(list* 'annotation _s _n __)   (format-annotation     ctx x)]
     [(list* 'cancel _s __)          (format-cancel         ctx x)]
