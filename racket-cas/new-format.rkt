@@ -244,7 +244,8 @@
         ; An dash in an identifer is formatted as a space
         (~a "\\mathrm{" (symbol->tex (string->symbol (string-replace s "-" "\\;"))) "}")]
        [else
-        (~a "\\mathrm{" (symbol->tex x) "}")])]))
+        (~a "\\mathrm{" (symbol->tex x) "}")])]
+    [_ (error (~v "ups:" x))]))
 
 (define (format-variable-name ctx x)
   (case (mode)
@@ -1023,7 +1024,8 @@
   (when debug? (displayln (list 'format-Delta ctx x)))  
   (match x
     [(list 'Delta u)
-     (define s (format-sexp ctx u))
+     ; note, u must be a variable, not a full expression (Delta (+ x 1)) doesn't make sense
+     (define s (format-variable-name ctx u))
      (case (mode)
        [(latex) (~a "{\\Delta " s "}")]
        [(mma)   (error 'todo-Delta)]
@@ -1925,8 +1927,8 @@
     (check-equal? (~ '(expt x 2))  "$x^2$")
     (check-equal? (~ '(expt x 23))  "$x^{23}$")
     (check-equal? (~ '(expt a (log (* x 2)))) "$a^{\\log(x\\cdot 2)}$")
-    (check-equal? (~ '(expt a (log a (* x 2)))) "42")
-    (check-equal? (~ '(expt a (* 2 (log a (* x 2))))) "$a^{2\\cdot \\log_{a}(x\\cdot 2)}$"))
+    (check-equal? (~ '(expt a (log a (* x 2)))) "$a^{\\log_{a}(x\\cdot 2)}$")
+    (check-equal? (~ '(expt a (* 2 (log a (* x 2))))) "$a^{2\\cdot {\\log_{a}(x\\cdot 2)}}$"))
 
   ;;; DIFFERENCE
   (parameterize ([mode 'default])
@@ -1976,7 +1978,7 @@
     (check-equal? (~ '(f (root x y))) "$f(\\sqrt[y]{x})$")
     (check-equal? (~ '(f (sqrt x)))   "$f(\\sqrt{x})$")
     (check-equal? (~ '(sin x))        "$\\sin(x)$")
-    (check-equal? (~ '(log a (* x y))) "$\\log_{a}(x\\cdot y)$")) ; log with explicit base 
+    (check-equal? (~ '(log a (* x y))) "${\\log_{a}(x\\cdot y)}$")) ; log with explicit base 
   
   ;;; PARENS
   (parameterize ([mode 'default])
@@ -2010,6 +2012,12 @@
     (check-equal? (~ '(diff (f x) y))    "$\\dv{y}(f(x))$")
     (check-equal? (~ '(diff (sqrt x) x)) "$(\\sqrt{x})'$"))
 
+  ;;; Delta notation
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(Delta f))          "${\\Delta f}$")
+    (check-equal? (~ '(Delta f_x))        "${\\Delta f_x}$")
+    (check-equal? (~ '(+ 1 (Delta t)))    "$1+{\\Delta t}$"))
+  
   ;;; abs
   (parameterize ([mode 'latex])
     (check-equal? (~ '(abs x))              "${\\left|x\\right|}$") ; just 'x worked  already
