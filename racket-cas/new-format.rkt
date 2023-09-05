@@ -895,9 +895,11 @@
      (define largs (string-append* (add-between us "}{")))
      (define unwrapped
        (case (mode)
-         [(latex) (if (backslash-symbol? name)
-                      (~a name "[" opts "]" "{" largs "}")  ; commands like \boxed
-                      (~a f    "[" opts "]" "("  args ")"))]
+         [(latex) (if (greek-sym? name)
+                      (~a name "(" args ")")
+                      (if (backslash-symbol? name)
+                          (~a name "[" opts "]" "{" largs "}")  ; commands like \boxed
+                          (~a f    "[" opts "]" "("  args ")")))]
          [(mma)   (~a f "[" args "]")]
          [else    (~a f "(" args ")")]))
      (wrap (cons 'application ctx) x unwrapped)]
@@ -908,9 +910,11 @@
      (define largs (string-append* (add-between us "}{")))
      (define unwrapped
        (case (mode)
-         [(latex) (if (backslash-symbol? name)
-                      (~a name "{" largs "}")  ; commands like \boxed
-                      (~a f    "("  args ")"))]
+         [(latex) (if (greek-sym? name)
+                      (~a name "(" args ")")
+                      (if (backslash-symbol? name)
+                          (~a name "{" largs "}")  ; commands like \boxed
+                          (~a f    "("  args ")")))]
          [(mma)   (~a f "[" args "]")]
          [else    (~a f "(" args ")")]))
      (wrap (cons 'application ctx) x unwrapped)]
@@ -1132,7 +1136,7 @@
   (when debug? (displayln (list 'format-intgrl ctx x)))
   ; descr is a list with 3 elements, (list var order style)
   (define (descr-var d)
-    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    ; the common case is (list 'intgrl var expr), e.g. (dd t (expt t 2))
     (if (symbol? d) d (first d))) ; e.g. x, t, etc.
   (define (descr-ll d)
     (if (symbol? d) 'nil (second d)))
@@ -1156,7 +1160,7 @@
   (when debug? (displayln (list 'format-sigma ctx x)))
   ; descr is a list with 3 elements, (list var order style)
   (define (descr-var d)
-    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    ; the common case is (list 'sigma var expr), e.g. (dd t (expt t 2))
     (first d)) ; e.g. x, t, etc.
   (define (descr-ll d)
     (second d))
@@ -1180,7 +1184,7 @@
   (when debug? (displayln (list 'format-lim ctx x)))
   ; descr is a list with 2 elements, (list var endpoint)
   (define (descr-var d)
-    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    ; the common case is (list 'lim var expr), e.g. (dd t (expt t 2))
     (first d)) ; e.g. x, t, etc.
   (define (descr-endp d)
     (second d))
@@ -1794,6 +1798,14 @@
 (define (backslash-symbol? x)
   (and (symbol? x) (equal? (string-ref (~a x) 0) #\\)))
 
+(define (greek-sym? x)
+  (and (symbol? x)
+       (member (symbol->string x)
+               (list "\\alpha" "\\beta" "\\gamma" "\\delta" "\\epsilon" "\\zeta"
+                     "\\eta" "\\theta" "\\iota" "\\kappa" "\\lambda" "\\mu" "\\nu"
+                     "\\xi" "\\omicron" "\\pi" "\\rho" "\\sigma" "\\tau" "\\upsilon"
+                     "\\phi" "\\chi" "\\psi" "\\omega"))))
+
 (define (format-latex-literals xs)
   (define who 'format-latex-literals)
   ; The input is a list of literal latex tokens and S-expressions.
@@ -2121,7 +2133,10 @@
     (check-equal? (~ '(f (expt x y))) "f(x^y)")
     (check-equal? (~ '(f (root x y))) "f(root(x,y))")
     (check-equal? (~ '(f (sqrt x)))   "f(sqrt(x))")
-    (check-equal? (~ '(sin x))        "sin(x)"))
+    (check-equal? (~ '(sin x))        "sin(x)")
+    ; incl. greek symbols for functions
+    (check-equal? (~ '(|\theta| t))   "\\theta(t)")
+    (check-equal? (~ '(|\theta| x t)) "\\theta(x,t)"))
 
   (parameterize ([mode 'mma])
     (check-equal? (~ '(f))            "f[]")
