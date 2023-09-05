@@ -535,9 +535,12 @@
     [(list* _ 'argument __)           unwrapped]
     [(list* _ 'relation-argument __)  unwrapped]
     [(list* _ 'paren __)              unwrapped]
+
+    ;;; dd
+    [(list* 'dd base _) (paren unwrapped)] ; case: (expt (d/dx x) 2), wrap (d/dx x) for clarity in the latex layout
     
-    [_
-     (error 'wrap (~a "no explicit rule for: " x " in the context: " ctx))]))
+    [l
+     (error 'wrap (~a "no explicit rule for: " x " in the context: " ctx " l: " l))]))
 
 (define (minus-prefixed? s)
   (and (> (string-length s) 0)
@@ -1032,6 +1035,166 @@
        [else    (format-application ctx x)])]
     [_ (error 'format-Delta (~a "got: " x))]))
 
+; add number for exponent
+; add style (leibniz, lagrange, newton, euler), https://en.wikipedia.org/wiki/Derivative
+;
+(define (format-dd ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-dd ctx x)))
+  ; descr is a list with 3 elements, (list var order style)
+  (define (descr-var d)
+    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    (if (symbol? d) d (first d))) ; e.g. x, t, etc.
+  (define (descr-order d)
+    (if (symbol? d) 1 (second d))) ; 1, 2 or a symbol like
+  (define (descr-style d) ; 'leibniz (d/dx), 'euler (D_x), 'newton (dot and ddot)
+    (if (symbol? d)
+        'leibniz
+        (if (eq? 3 (length d)) ; style is an optional 3rd element, default to leibniz
+            (third d)
+            'leibniz)))
+  (define (dd-str var order style e)
+    (match (list style order)
+      [(list 'leibniz 1)
+       (case (mode)
+         [(latex) (~a "{\\frac{\\text{d}}{\\text{d}" var "} " e "}")]
+         [else    (format-application ctx x)])]
+      [(list 'leibniz 2)
+       (case (mode)
+         [(latex) (~a "{\\frac{{\\text{d}}^{2}}{\\text{d}{" var "}^{2}} " e "}")]
+         [else    (format-application ctx x)])]
+      [(list 'euler 1)
+       (case (mode)
+         [(latex) (~a "{{\\text{D}}_{" var "} " e "}")]
+         [else    (format-application ctx x)])]
+      [(list 'euler 2)
+       (case (mode)
+         [(latex) (~a "{{\\text{D}}_{" var "}^{2} " e "}")]
+         [else    (format-application ctx x)])]
+      [(list 'newton 1)
+       (case (mode)
+         [(latex) (~a "{\\dot{" e "}}")]
+         [else    (format-application ctx x)])]
+      [(list 'newton 2)
+       (case (mode)
+         [(latex) (~a "{\\ddot{" e "}}")]
+         [else    (format-application ctx x)])]
+      [_
+       (error 'dd-str (~a "got: " var " " order " " style " " e))]))
+  (define unwrapped
+    (match x
+      [(list 'dd descr (or (? symbol? expr)
+                           (? number? expr)))
+       ; note, var must be a variable, not a full expression (dd (+ x 1)) doesn't make sense
+       (define fvar (format-variable-name ctx (descr-var descr)))
+       (define fexpr (format-function-name ctx expr))
+       (dd-str fvar (descr-order descr) (descr-style descr) fexpr)]
+      [(list 'dd descr expr)
+       (define fvar (format-variable-name ctx (descr-var descr)))
+       (cond
+         ; NO EXTRA PAREN
+         [(member (car expr) '(sqrt expt sin cos tan asin acos atan))
+          (let ([fexpr (format-sexp ctx expr)])
+            (dd-str fvar (descr-order descr) (descr-style descr) fexpr))]
+         [else
+          ; ADD PAREN (e.g. for +, d/dx, etc.)
+          (let ([fexpr (format-sexp (cons 'argument ctx) expr)])
+            (dd-str fvar (descr-order descr) (descr-style descr) (paren fexpr)))])]
+      [_ (error 'format-dd (~a "got: " x))]))
+  (wrap (cons 'dd ctx) x unwrapped))
+
+(define (format-dd-application ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-dd-application ctx x)))
+  (define unwrapped
+    (match x
+      [(list (list 'dd descr f) e)
+       ; note, var must be a variable, not a full expression (dd (+ x 1)) doesn't make sense
+       (define fdd (format-dd ctx (list 'dd descr f)))
+       (define fe (format-sexp (cons 'argument ctx) e))
+       (case (mode)
+         [(latex) (~a "{(" fdd ")(" fe ")}")]
+         [(mma)   (error 'todo-dd-application-mma)]
+         [else    (format-application ctx x)])]))
+  (wrap (cons 'dd-application ctx) x unwrapped))
+
+(define (format-littled ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-littled ctx x)))  
+  (match x
+    [(list 'littled u)
+     ; note, u must be a variable, not a full expression (littled (+ x 1)) doesn't make sense
+     (define s (format-variable-name ctx u))
+     (case (mode)
+       [(latex) (~a "{\\text{d}" s "}")]
+       [(mma)   (error 'todo-littled)]
+       [else    (format-application ctx x)])]
+    [_ (error 'format-littled (~a "got: " x))]))
+
+(define (format-intgrl ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-intgrl ctx x)))
+  ; descr is a list with 3 elements, (list var order style)
+  (define (descr-var d)
+    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    (if (symbol? d) d (first d))) ; e.g. x, t, etc.
+  (define (descr-ll d)
+    (if (symbol? d) 'nil (second d)))
+  (define (descr-ul d)
+    (if (symbol? d) 'nil (third d)))
+  (match x
+    [(list 'intgrl descr expr)
+     (define fvar (format-variable-name ctx (descr-var descr)))
+     (define fexpr (format-sexp ctx expr))
+     (define ll (format-sexp ctx (descr-ll descr)))
+     (define ul (format-sexp ctx (descr-ul descr)))
+     (case (mode)
+       [(latex) (if (eq? (descr-ll descr) 'nil)
+                    (~a "{\\int " fexpr " \\text{d}" fvar "}")
+                    (~a "{\\int_{" ll "}^{" ul "}" fexpr " \\text{d}" fvar "}"))]
+       [else    (format-application ctx x)])]
+    ;[else    (error 'todo-intgrl)])]
+    [_ (error 'format-intgrl (~a "got: " x))]))
+
+(define (format-sigma ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-sigma ctx x)))
+  ; descr is a list with 3 elements, (list var order style)
+  (define (descr-var d)
+    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    (first d)) ; e.g. x, t, etc.
+  (define (descr-ll d)
+    (second d))
+  (define (descr-ul d)
+    (third d))
+  (match x
+    [(list 'sigma descr expr)
+     (define fvar (format-variable-name ctx (descr-var descr)))
+     (define fexpr (format-sexp ctx expr))
+     (define ll (format-sexp ctx (descr-ll descr)))
+     (define ul (format-sexp ctx (descr-ul descr)))
+     (case (mode)
+       ;; eqcirc instead of = to avoid issues with downstream
+       ;; (i.e. outside racket-cas) rewrites of =.
+       [(latex) (~a "{\\sum_{" fvar "\\eqcirc " ll "}^{" ul "}" fexpr "}")]
+       [else    (format-application ctx x)])]
+    ;[else    (error 'todo-sigma)])]
+    [_ (error 'format-sigma (~a "got: " x))]))
+
+(define (format-lim ctx x) ; KaTeX
+  (when debug? (displayln (list 'format-lim ctx x)))
+  ; descr is a list with 2 elements, (list var endpoint)
+  (define (descr-var d)
+    ; the common case is (list 'dd var expr), e.g. (dd t (expt t 2))
+    (first d)) ; e.g. x, t, etc.
+  (define (descr-endp d)
+    (second d))
+  (match x
+    [(list 'lim descr expr)
+     (define fvar (format-variable-name ctx (descr-var descr)))
+     (define fexpr (format-sexp ctx expr))
+     (define endp (format-sexp ctx (descr-endp descr)))
+     (case (mode)
+       [(latex) (~a "{\\lim_{" fvar " \\rightarrow " endp "} " fexpr "}")]
+       [else    (format-application ctx x)])]
+    ;[else    (error 'todo-lim)])]
+    [_ (error 'format-lim (~a "got: " x))]))
+
 (define (format-annotation ctx x) ; KaTeX
   (when debug? (displayln (list 'format-annotation ctx x)))  
   (match x
@@ -1200,8 +1363,6 @@
                     [(list)              (list)])))
      (wrap-latex-environment 'split (~a (string-append* (cons v0 vs)) "\n"))]
     [_ (error who (~a "got: " x))]))
-
-  
 
 (define (format-hat ctx x)
   (when debug? (displayln (list 'format-hat ctx x)))  
@@ -1435,6 +1596,12 @@
     [(list* 'html-style _ __)       (format-html-style     ctx x)]
     [(list* 'colorbox _ __)         (format-colorbox       ctx x)]
     [(list* 'Delta _)               (format-Delta          ctx x)]
+    [(list* 'dd _ __)               (format-dd             ctx x)]
+    [(list* 'intgrl _ __)           (format-intgrl         ctx x)]
+    [(list* 'sigma _ __)            (format-sigma          ctx x)]
+    [(list* 'lim _ __)              (format-lim            ctx x)]
+    [(list* 'littled _)             (format-littled        ctx x)]
+    [(list* 'Delta _)               (format-Delta          ctx x)]
     [(list* 'fcolorbox _fc _c __)   (format-fcolorbox      ctx x)]
     [(list* 'annotation _s _n __)   (format-annotation     ctx x)]
     [(list* 'cancel _s __)          (format-cancel         ctx x)]
@@ -1443,7 +1610,8 @@
     [(list* (? symbol? _) __)       (format-application    ctx x)]
     ; Case: ((vec f) x), i.e. the function being applied is vector-function.
     [(list* (list 'vec (? symbol? _)) __) (format-application    ctx x)]
-    
+    ; Case ((dd f) x), eval a derivative at point x
+    [(list* (list 'dd (? symbol? _v) _e) _) (format-dd-application    ctx x)]
     [_
      (error 'format-sexp (~a "got: " x))]))
 
@@ -2017,7 +2185,60 @@
     (check-equal? (~ '(Delta f))          "${\\Delta f}$")
     (check-equal? (~ '(Delta f_x))        "${\\Delta f_x}$")
     (check-equal? (~ '(+ 1 (Delta t)))    "$1+{\\Delta t}$"))
-  
+
+  ;;; dd notation
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(dd t f))           "${\\frac{\\text{d}}{\\text{d}t} f}$")
+    (check-equal? (~ '(dd t 1))           "${\\frac{\\text{d}}{\\text{d}t} 1}$")
+    ; has paren since otherwise we have ambiguity
+    ;   (d/dt f)(x), and
+    ;    d/dt f(x)
+    (check-equal? (~ '(dd t (f t)))       "${\\frac{\\text{d}}{\\text{d}t} (f(t))}$")    
+    ; application, this required expanding format-sexp to be 'dd aware (even though dd is "just another application")
+    (check-equal? (~ '((dd t f) x))       "${({\\frac{\\text{d}}{\\text{d}t} f})(x)}$") ; application, i.e. d/dt (f(t)) at t=x
+    (check-equal? (~ '((dd t (f t)) x))   "${({\\frac{\\text{d}}{\\text{d}t} (f(t))})(x)}$") ; application, i.e. d/dt (f(t)) at t=x    
+    (check-equal? (~ '(dd t (+ a b)))     "${\\frac{\\text{d}}{\\text{d}t} (a+b)}$")
+    (check-equal? (~ '(dd t (- a b)))     "${\\frac{\\text{d}}{\\text{d}t} (a-b)}$")
+    (check-equal? (~ '(dd t (- a)))       "${\\frac{\\text{d}}{\\text{d}t} (-a)}$")
+    (check-equal? (~ '(dd t (* a b)))     "${\\frac{\\text{d}}{\\text{d}t} (a\\cdot b)}$")
+    (check-equal? (~ '(dd t (/ a b)))     "${\\frac{\\text{d}}{\\text{d}t} (\\frac{a}{b})}$")
+    (check-equal? (~ '(dd t (+ 1 (/ a b)))) "${\\frac{\\text{d}}{\\text{d}t} (1+\\frac{a}{b})}$")
+    (check-equal? (~ '(dd a (dd b (+ a b))))  "${\\frac{\\text{d}}{\\text{d}a} ({\\frac{\\text{d}}{\\text{d}b} (a+b)})}$")
+    ; no parenthesis needed around (sqrt e) or expt forms
+    (check-equal? (~ '(dd t (sqrt e)))    "${\\frac{\\text{d}}{\\text{d}t} \\sqrt{e}}$")
+    (check-equal? (~ '(dd t (expt e 2)))  "${\\frac{\\text{d}}{\\text{d}t} e^2}$")
+    ; trig
+    (check-equal? (~ '(dd t (sin e)))     "${\\frac{\\text{d}}{\\text{d}t} \\sin(e)}$")
+    ; 2nd order
+    (check-equal? (~ '(dd (t 2 leibniz) (f t))) "${\\frac{{\\text{d}}^{2}}{\\text{d}{t}^{2}} (f(t))}$")
+    (check-equal? (~ '(dd (t 2        ) (f t))) "${\\frac{{\\text{d}}^{2}}{\\text{d}{t}^{2}} (f(t))}$") ; check default
+    ; newton
+    (check-equal? (~ '(dd (t 1 newton) (f t))) "${\\dot{(f(t))}}$")
+    (check-equal? (~ '(dd (t 2 newton) (f t))) "${\\ddot{(f(t))}}$")
+    ; euler
+    (check-equal? (~ '(dd (t 1 euler) (f t)))  "${{\\text{D}}_{t} (f(t))}$")
+    (check-equal? (~ '(dd (t 2 euler) (f t)))  "${{\\text{D}}_{t}^{2} (f(t))}$")
+    )
+
+  ;;; littled notation
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(littled u))       "${\\text{d}u}$"))
+
+  ;;; intgrl notation
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(intgrl t f))           "${\\int f \\text{d}t}$")
+    (check-equal? (~ '(intgrl t (f t)))       "${\\int f(t) \\text{d}t}$")
+    (check-equal? (~ '(intgrl (t a b) f))     "${\\int_{a}^{b}f \\text{d}t}$")
+    (check-equal? (~ '(intgrl (t a b) (f t))) "${\\int_{a}^{b}f(t) \\text{d}t}$"))
+
+  ;;; sum/sigma notation
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(sigma (i 0 n) f_i))    "${\\sum_{i\\eqcirc 0}^{n}f_i}$"))
+
+  ;;; limit notation
+  (parameterize ([mode 'latex])
+    (check-equal? (~ '(lim (x 0) (/ 1 x)))    "${\\lim_{x \\rightarrow 0} \\frac{1}{x}}$"))
+
   ;;; abs
   (parameterize ([mode 'latex])
     (check-equal? (~ '(abs x))              "${\\left|x\\right|}$") ; just 'x worked  already
