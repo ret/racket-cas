@@ -871,6 +871,7 @@
     ['*   "\\cdot "]
     ['or  "\\vee "]
     ['and "\\wedge "]
+    [(? symbol?) #:when (greek-sym? s) (symbol->string s)]
     [(list 'vec _) (format-vec 'original s)]
     ;;; Names with 2 or more characters needs to be typeset upright.
     [_  (define t (~a s))
@@ -1038,6 +1039,11 @@
        [(mma)   (error 'todo-Delta)]
        [else    (format-application ctx x)])]
     [_ (error 'format-Delta (~a "got: " x))]))
+
+(define (dd? x)
+  (match x
+    [(list 'dd _ ...) #t]
+    [_ #f]))
 
 ; add number for exponent
 ; add style (leibniz, lagrange, newton, euler), https://en.wikipedia.org/wiki/Derivative
@@ -2230,6 +2236,8 @@
     ; newton
     (check-equal? (~ '(dd (t 1 newton) (f t))) "${\\dot{(f(t))}}$")
     (check-equal? (~ '(dd (t 2 newton) (f t))) "${\\ddot{(f(t))}}$")
+    (check-equal? (~ '(dd (t 2 newton) |\theta|)) "${\\ddot{\\theta}}$")
+    (check-equal? (~ '(dd (t 2 newton) (|\theta| t))) "${\\ddot{(\\theta(t))}}$")
     ; euler
     (check-equal? (~ '(dd (t 1 euler) (f t)))  "${{\\text{D}}_{t} (f(t))}$")
     (check-equal? (~ '(dd (t 2 euler) (f t)))  "${{\\text{D}}_{t}^{2} (f(t))}$")
