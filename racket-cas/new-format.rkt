@@ -1129,12 +1129,17 @@
 (define (format-littled ctx x) ; KaTeX
   (when debug? (displayln (list 'format-littled ctx x)))  
   (match x
-    [(list 'littled u)
-     ; note, u must be a variable, not a full expression (littled (+ x 1)) doesn't make sense
+    [(list 'littled (? symbol? u))
      (define s (format-variable-name ctx u))
      (case (mode)
        [(latex) (~a "{\\text{d}" s "}")]
-       [(mma)   (error 'todo-littled)]
+       [(mma)   (error 'todo-littled-1)]
+       [else    (format-application ctx x)])]
+    [(list 'littled (? list? u))
+     (define fu (format-sexp ctx u))
+     (case (mode)
+       [(latex) (~a "{\\text{d}(" fu ")}")] ; wrap with () for clarity (e.g., d(x+1))
+       [(mma)   (error 'todo-littled-2)]
        [else    (format-application ctx x)])]
     [_ (error 'format-littled (~a "got: " x))]))
 
@@ -2245,7 +2250,8 @@
 
   ;;; littled notation
   (parameterize ([mode 'latex])
-    (check-equal? (~ '(littled u))       "${\\text{d}u}$"))
+    (check-equal? (~ '(littled u))       "${\\text{d}u}$")
+    (check-equal? (~ '(littled (+ u 1))) "${\\text{d}(u+1)}$"))
 
   ;;; intgrl notation
   (parameterize ([mode 'latex])
