@@ -609,6 +609,18 @@
        [_ (error 'format-sum (~a "expected a sum, got: " x))])]))
   (wrap (cons 'sum ctx) x plain))
 
+(define (format-union ctx x)
+  (define unwrapped
+    (match x
+      [(list 'union ls ...)
+       (define us (map (lambda(u) (format-sexp (cons 'argument ctx) u)) ls))
+       (define largs (string-append* (add-between us " \\thickspace\\cup\\thickspace ")))
+       (case (mode)
+         [(latex) (~a largs)]
+         [else    (~a largs)])]
+      [_ (error 'format-union (~a "expected a union, got: " x))]))
+  (wrap (cons 'union ctx) x unwrapped))
+
 (define (format-product ctx x)
   ; Note: implicit-minus-one-as-first-factor affects the output
   ;   If #t:   (* -1 x) -> -x
@@ -1252,6 +1264,7 @@
 ; (T symbol?) ---> T^s (e.g. R^m)
 ; (times S T) ---> S X T
 ; (to S T)    ---> S -> T
+; else        ---> sexp (E.g. for '(union ...)
 (define (format-sym-decl-type ctx x) ; KaTeX
   (when debug? (displayln (list 'format-sym-decl-type ctx x)))  
   (match x
@@ -1266,6 +1279,10 @@
          [else (error format-sym-decl-latex-typename (~a "unknown type: " x))]))
      (define (rhs-type x)
        (match x
+         [(list (? symbol? i) _ _)
+          #:when (member i '(ccinterval cointerval ocinterval oointerval))
+          (~a (format-sexp ctx x))]
+         [(list 'union _ ...) (~a (format-union ctx x))] ; mutli-element case. e.g. for '(union (ccinterval ...) (ccinteval ...))
          [(list 'to ta tb) (~a (rhs-type ta) "\\to" (rhs-type tb))] ; ->
          [(list 'times ta tb) (~a (rhs-type ta) "\\times" (rhs-type tb))] ; X
          [(? symbol? t) (format-sym-decl-latex-typename t)] ; R
@@ -1577,6 +1594,7 @@
     [(? symbol?)                    (format-variable-name  ctx x)]
     [(? string?)                    (format-string         ctx x)]
     [(list* '+ _)                   (format-sum            ctx x)]
+    [(list* 'union _)               (format-union          ctx x)]
     [(list* '* k _)  #:when (ni? k) (format-product        ctx x)]
     [(⊘ u (? nr? v)) #:when uq      (format-as-quotient    ctx u v x)] ; before * and /
     [(list* '* _)                   (format-product        ctx x)]
@@ -2425,6 +2443,9 @@
     (check-equal? (~ '(sym-decl-type (to complex real) (x y))) "$x, y\\colon \\mathbb{C}\\to\\mathbb{R}$")
     (check-equal? (~ '(sym-decl-type natural (f))) "$f\\colon \\mathbb{N}$")
     (check-equal? (~ '(sym-decl-type (natural 3) (b))) "$b\\colon {\\mathbb{N}}^{3}$")
+    (check-equal? (~ '(sym-decl-type (cointerval 0 (/ @pi 2)) (x y z))) "$x, y, z\\colon [0,\\frac{π}{2}[$")
+    (check-equal? (~ '(sym-decl-type (union (cointerval 0 (/ @pi 2)) (cointerval (/ @pi 2) @pi)) (x y)))
+                  "$x, y\\colon [0,\\frac{π}{2}[ \\thickspace\\cup\\thickspace [\\frac{π}{2},π[$")
 
     (check-equal? (~ '(* 1/2 1/3))              "$\\frac{1}{2}\\cdot \\frac{1}{3}$")
     (check-equal? (~ '(sqrt (* 1/2 1/3)))       "$\\sqrt{{\\frac{1}{2}\\cdot \\frac{1}{3}}}$")
