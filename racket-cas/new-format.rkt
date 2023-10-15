@@ -1173,8 +1173,8 @@
      (define ul (format-sexp ctx (descr-ul descr)))
      (case (mode)
        [(latex) (if (eq? (descr-ll descr) 'nil)
-                    (~a "{\\int " fexpr " \\text{d}" fvar "}")
-                    (~a "{\\int_{" ll "}^{" ul "}" fexpr " \\text{d}" fvar "}"))]
+                    (~a "{\\int\\! " fexpr " \\,\\text{d}" fvar "}")
+                    (~a "{\\int_{" ll "}^{" ul "}\\!" fexpr " \\,\\text{d}" fvar "}"))]
        [else    (format-application ctx x)])]
     ;[else    (error 'todo-intgrl)])]
     [_ (error 'format-intgrl (~a "got: " x))]))
