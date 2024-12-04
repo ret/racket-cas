@@ -10,7 +10,7 @@
 (require racket-cas)
 
 (define (poly->string p x [var "x"])
-  (define (sign r) 
+  (define (sign r)
     (match r
       [r #:when (number? r) (if (>= r 0) "+" "-" )]
       [s #:when (symbol? s) "+"]
@@ -18,7 +18,7 @@
       [(list '* n a s) #:when (symbol? a) (sign n)]
       [(list 'expt s n)     "+"]
       [else (error 'sign (~a "got: " r))]))
-  (define (Abs r) 
+  (define (Abs r)
     (match r
       [r #:when (number? r) (abs r)]
       [s #:when (symbol? s) s]
@@ -55,9 +55,9 @@
       (match sign-coef-exps
         [(list) "0"]
         [(list (list sign coef exps) more ...)
-         (string-append 
+         (string-append
           ; first term
-          (if (equal? sign "+") "" sign) 
+          (if (equal? sign "+") "" sign)
           (if (equal? sign "+") coef (space coef))
           exps
           ; remaining terms
@@ -85,14 +85,14 @@
 (define (generate-question1)
   ; (4x - 1)² ; 16x² - 8x + 1
   (define ax+b (random-first-order-polynomial 5))
-  (~a "(" (poly->string ax+b x) ")² ; " 
-      (poly->string (expand (normalize `(sqr ,ax+b))) x)))
+  (~a "(" (poly->string ax+b 'x) ")² ; "
+      (poly->string (expand (normalize `(sqr ,ax+b))) 'x)))
 
 (define (generate-question2)
   ; (ax - 4)² ; a²x² - 8ax + 16
   (define ax+b (random-first-order-polynomial 5 #:allow-variables #t))
-  (~a "(" (poly->string ax+b x) ")² ; " 
-      (poly->string (expand (normalize `(sqr ,ax+b))) x)))
+  (~a "(" (poly->string ax+b 'x) ")² ; "
+      (poly->string (expand (normalize `(sqr ,ax+b))) 'x)))
 
 (define (questions generate-question n)
   (define (loop qs)
